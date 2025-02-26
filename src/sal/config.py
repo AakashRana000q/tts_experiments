@@ -19,11 +19,10 @@ from typing import Literal
 from huggingface_hub import get_full_repo_name
 
 from sal.utils.hub import get_dataset_revisions
-# dwfddsfs
 
 @dataclass
 class Config:
-    approach: Literal["best_of_n", "beam_search", "dvts", "dss"] = "best_of_n"
+    approach: Literal["best_of_n", "beam_search", "dvts", "dss"] = "dss"
     model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
     gpu_memory_utilization: float = (
         0.5  # vllm is allocated 0.5 of GPU memory, the PRM uses the rest
@@ -70,7 +69,7 @@ class Config:
 
     # diverse semantic search options:
     em_path: str = "alan-yahya/MatBERT"
-    cluster_sizes: list = [4,8,16,32,64,128]
+    # cluster_sizes: Literal[4,8,16,32,64,128] = 4
     em_batch_size: int = 128
 
     def __post_init__(self):
