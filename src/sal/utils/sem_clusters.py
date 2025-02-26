@@ -44,7 +44,7 @@ def optimal_clusters_silhouette(embeddings,config):
     best_score = -1
     total_samples = embeddings.shape[0]
     for k in [4,8,16,32,64,128,256,512]:  #add config
-        if k>total_samples:
+        if k>=total_samples:
             continue
 
         k = min(k, total_samples-1)
