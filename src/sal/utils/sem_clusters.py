@@ -67,14 +67,15 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     labels = kmeans.labels_
 
     num_select = (config.n // config.beam_width)
+    num_clusters = len(set(labels))
 
     df = pd.DataFrame({"index": range(len(active_text)), "score": agg_scores, "group": labels})
     df = df.sort_values(by="score", ascending=False)
 
     samples_per_group = num_select // num_clusters  
-    remaining_samples = num_select % num_clusters   
 
     selected = df.groupby("group").head(samples_per_group)
+    remaining_samples = num_select-len(selected)
     remaining = df[~df["index"].isin(selected["index"])].head(remaining_samples)
     final_selection = pd.concat([selected, remaining])
 
