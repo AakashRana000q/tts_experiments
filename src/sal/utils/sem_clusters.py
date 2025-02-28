@@ -9,10 +9,10 @@ from sal.config import Config
 def clean_solutions(ls):
     cleaned_ls = []
     for solution in ls:
-        cleaned_solution = solution.strip() 
-        cleaned_solution = re.sub(r'\n+', '\n', cleaned_solution)  
-        cleaned_solution = re.sub(r'\s+', ' ', cleaned_solution)  
-        cleaned_solution = re.sub(r'\s([.,!?])', r'\1', cleaned_solution)  
+        cleaned_solution = solution.strip()
+        cleaned_solution = re.sub(r'\n+', '\n', cleaned_solution)
+        cleaned_solution = re.sub(r'\s+', ' ', cleaned_solution)
+        cleaned_solution = re.sub(r'\s([.,!?])', r'\1', cleaned_solution)
         cleaned_ls.append(cleaned_solution)
     return cleaned_ls
 
@@ -40,9 +40,14 @@ def generate_embedding(sentences,em_model,em_tokenizer,batch_size):
     return np.vstack(all_embeds)
 
 def optimal_clusters_silhouette(embeddings,config):
-    best_k = 4
+    best_k = 1
     best_score = -1
-    for k in config.cluster_sizes:  #add config
+    total_samples = embeddings.shape[0]
+    for k in [4,8,16,32,64,128,256,512]:  #add config
+        if k>=total_samples:
+            continue
+
+        k = min(k, total_samples-1)
         kmeans = KMeans(n_clusters=k, random_state=config.seed, n_init=10)
         labels = kmeans.fit_predict(embeddings)
         score = silhouette_score(embeddings, labels)
@@ -72,7 +77,7 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     df = pd.DataFrame({"index": range(len(active_text)), "score": agg_scores, "group": labels})
     df = df.sort_values(by="score", ascending=False)
 
-    samples_per_group = num_select // num_clusters  
+    samples_per_group = num_select // num_clusters
 
     selected = df.groupby("group").head(samples_per_group)
     remaining_samples = num_select-len(selected)
@@ -87,4 +92,4 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
 
 
 
-    
+
