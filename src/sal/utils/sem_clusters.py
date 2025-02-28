@@ -40,7 +40,7 @@ def generate_embedding(sentences,em_model,em_tokenizer,batch_size):
     return np.vstack(all_embeds)
 
 def optimal_clusters_silhouette(embeddings,config):
-    best_k = 4
+    best_k = 1
     best_score = -1
     total_samples = embeddings.shape[0]
     for k in [4,8,16,32,64,128,256,512]:  #add config
