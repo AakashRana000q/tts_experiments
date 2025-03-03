@@ -19,13 +19,16 @@ from typing import Literal
 from huggingface_hub import get_full_repo_name
 
 from sal.utils.hub import get_dataset_revisions
+from datetime import datetime
+import os
 
 @dataclass
 class Config:
     approach: Literal["best_of_n", "beam_search", "dvts", "dss"] = "dss"
-    model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
+    model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
+
     gpu_memory_utilization: float = (
-        0.5  # vllm is allocated 0.5 of GPU memory, the PRM uses the rest
+        0.5
     )
     prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
     # Output Related Options
@@ -68,9 +71,12 @@ class Config:
     sort_completed: bool = False
 
     # diverse semantic search options:
-    em_path: str = "alan-yahya/MatBERT"
+    em_path: str = "math-similarity/Bert-MLM_arXiv-MP-class_zbMath"
     # cluster_sizes: Literal[4,8,16,32,64,128] = 4
     em_batch_size: int = 128
+
+    log_file = ""
+    log_dir = ""
 
     def __post_init__(self):
         if self.approach == "dvts":
@@ -82,6 +88,10 @@ class Config:
             # TODO: implemented a batched version
             if self.search_batch_size != 1:
                 raise ValueError("search_batch_size should be 1 for beam_search")
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        self.log_dir = f"logs/{self.approach}/{timestamp}_cluster_logs"
+        self.log_file = f"{self.log_dir}/cluster_log.json"
 
         # Setting up push to hub dataset
         if self.push_to_hub:
