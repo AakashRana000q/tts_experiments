@@ -68,7 +68,7 @@ class Config:
     sort_completed: bool = False
 
     # diverse semantic search options:
-    em_path: str = "alan-yahya/MatBERT"
+    em_path: str = "math-similarity/Bert-MLM_arXiv-MP-class_zbMath"
     # cluster_sizes: Literal[4,8,16,32,64,128] = 4
     em_batch_size: int = 128
 

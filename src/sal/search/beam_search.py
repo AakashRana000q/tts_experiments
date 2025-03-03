@@ -197,7 +197,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
     return completed_beams
 
 
-def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
+def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     beam_results = _beam_search(problems, config, llm, prm)
 

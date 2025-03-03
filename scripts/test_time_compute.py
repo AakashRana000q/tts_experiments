@@ -29,8 +29,7 @@ from sal.search import beam_search, best_of_n, dvts, dss
 from sal.utils.data import get_dataset, save_dataset
 from sal.utils.parser import H4ArgumentParser
 from sal.utils.score import score
-
-from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -61,17 +60,14 @@ def main():
         tensor_parallel_size=num_gpus,
     )
     prm = load_prm(config)
-
-    if(config.approach=="dss"):
-        em_tokenizer = AutoTokenizer.from_pretrained(config.em_path)
-        em_model = AutoModel.from_pretrained(config.em_path)
+    em_model = SentenceTransformer.from_pretrained(config.em_path,device = torch.device("cuda:0"))
 
     dataset = get_dataset(config)
     dataset = dataset.map(
         approach_fn,
         batched=True,
         batch_size=config.search_batch_size,
-        fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model,"em_tokenizer":em_tokenizer},
+        fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model},
         desc="Running search",
         load_from_cache_file=False,
     )
