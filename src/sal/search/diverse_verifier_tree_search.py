@@ -26,11 +26,13 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
+from sal.utils.sem_clusters import get_semantic_indices
+
 
 logger = logging.getLogger()
 
 
-def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
+def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None ,em_tokenizer = None, problem_id = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -115,6 +117,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
 
         all_scores = prm.score(prompts, completions)
+        selected_scores = []
+        selected_text = []
 
         for beam, scores in zip(gen_beams, all_scores, strict=True):
             agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
@@ -122,6 +126,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
+            selected_text.append(beam.current_text)
+            selected_scores.apeend([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
             if (
@@ -130,11 +136,14 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
             ):
                 # stopped on EOS, prune
                 beam.pruned = True
-
+        
+        get_semantic_indices(config, em_model ,em_tokenizer, selected_text, selected_scores, is_non_dss=True, iteration_number=i, problem_id=problem_id)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
                 beam.pruned = True
+
+
 
     # we need to copy the results from the last iteration in to beam_width beams as otherwise we would only have n/m results
     output: list[Beam] = []
@@ -161,7 +170,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
 
 def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
     problems = examples["problem"]
-    beam_results = _dvts(problems, config, llm, prm)
+    beam_results = _dvts(problems, config, llm, prm, em_model ,em_tokenizer , examples["problem_id"][0])
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

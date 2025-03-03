@@ -30,7 +30,7 @@ from sal.utils.score import aggregate_scores
 from sal.utils.sem_clusters import get_semantic_indices
 
 
-def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, em_tokenizer) -> list[Beam]:
+def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, em_tokenizer, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -166,7 +166,7 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, e
             agg_scores = [agg_scores[i] for i in unique_beam_dict.values()]
 
         # Get indices for top completions equally sampled from all buckets
-        top_indices = get_semantic_indices(config,em_model,em_tokenizer,active_beams,agg_scores)
+        top_indices = get_semantic_indices(config,em_model,em_tokenizer,active_beams,agg_scores,is_non_dss=False,iteration_number=i,problem_id=problem_id)
 
         for idx, beam in enumerate(active_beams):
             if idx not in top_indices:
@@ -199,7 +199,7 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, e
 
 def dss(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
     problems = examples["problem"]
-    beam_results = _ds_search(problems, config, llm, prm, em_model, em_tokenizer)
+    beam_results = _ds_search(problems, config, llm, prm, em_model, em_tokenizer, examples["problem_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
