@@ -8,8 +8,7 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
@@ -22,6 +21,7 @@ from vllm import LLM, SamplingParams
 
 from sal.config import Config
 from sal.models.reward_models import PRM
+from sal.utils.sem_clusters import get_semantic_indices
 
 from .utils import Beam, build_conv, generate_k_steps, last
 
@@ -29,7 +29,7 @@ logger = logging.getLogger()
 from sal.utils.score import aggregate_scores
 
 
-def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[Beam]:
+def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None ,em_tokenizer = None, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -178,6 +178,8 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
             else:
                 selected_scores.append(agg_scores[idx])
                 selected_text.append(beam.current_text)
+        
+        get_semantic_indices(config, em_model ,em_tokenizer, selected_text, selected_scores, is_non_dss=True, iteration_number=i, problem_id=problem_id)
 
     # Filter completed beams for those with top config.n scores
     if config.sort_completed:
@@ -205,7 +207,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
 
 def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
     problems = examples["problem"]
-    beam_results = _beam_search(problems, config, llm, prm)
+    beam_results = _beam_search(problems, config, llm, prm, em_model ,em_tokenizer , examples["problem_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

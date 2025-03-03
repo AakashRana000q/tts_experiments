@@ -5,6 +5,33 @@ import torch
 from sklearn.metrics import silhouette_score
 import pandas as pd
 from sal.config import Config
+import json
+from datetime import datetime
+import os
+
+def log_semantic_clusters(num_samples, num_clusters, agg_scores, iteration_number, problem_id):
+    """
+    Log semantic clustering information to a JSON file with a unique timestamp.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    log_dir = "logs"
+    
+    os.makedirs(log_dir, exist_ok=True)
+    filename = f"{log_dir}/cluster_log_{timestamp}.json"
+    
+    log_data = {
+        "timestamp": timestamp,
+        "num_samples": num_samples,
+        "num_clusters": num_clusters,
+        "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+        "iteration_number": iteration_number,
+        "problem_id": problem_id
+    }
+    
+    with open(filename, 'w') as f:
+        json.dump(log_data, f, indent=4)
+    
+    return filename
 
 def clean_solutions(ls):
     cleaned_ls = []
@@ -78,10 +105,17 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     num_select = (config.n // config.beam_width)
     num_clusters = len(set(labels))
 
-    // TODO: Add Logging for non dss;
-    // Log num_samples , num_clusters, agg_scores, iteration_number, problem_id
+    # TODO: Add Logging for non dss;
+    # Log num_samples = len(active_text) , num_clusters, agg_scores, iteration_number, problem_id
 
     if is_non_dss:
+        log_semantic_clusters(
+            num_samples=len(active_text),
+            num_clusters=num_clusters,
+            agg_scores=agg_scores,
+            iteration_number=iteration_number,
+            problem_id=problem_id,
+        )
         return num_clusters
 
     df = pd.DataFrame({"index": range(len(active_text)), "score": agg_scores, "group": labels})
@@ -96,7 +130,16 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
 
     ret_ind = final_selection["index"].tolist()
 
-    // TODO: Add Logging for dss;
+    # TODO: Add Logging for dss;
+    # Log num_samples = len(ret_ind) , num_clusters, agg_scores, iteration_number, problem_id
+    log_semantic_clusters(
+        num_samples=len(ret_ind),
+        num_clusters=num_clusters,
+        agg_scores=agg_scores,
+        iteration_number=iteration_number,
+        problem_id=problem_id,
+    )
+
     return ret_ind
 
 

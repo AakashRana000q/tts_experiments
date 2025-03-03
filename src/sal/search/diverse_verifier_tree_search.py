@@ -26,11 +26,13 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
+from sal.utils.sem_clusters import get_semantic_indices
+
 
 logger = logging.getLogger()
 
 
-def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
+def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None ,em_tokenizer = None, problem_id = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -134,7 +136,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
             ):
                 # stopped on EOS, prune
                 beam.pruned = True
-
+        
+        get_semantic_indices(config, em_model ,em_tokenizer, selected_text, selected_scores, is_non_dss=True, iteration_number=i, problem_id=problem_id)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
@@ -167,7 +170,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
 
 def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
     problems = examples["problem"]
-    beam_results = _dvts(problems, config, llm, prm)
+    beam_results = _dvts(problems, config, llm, prm, em_model ,em_tokenizer , examples["problem_id"][0])
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
