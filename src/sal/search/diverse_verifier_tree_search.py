@@ -32,7 +32,7 @@ from sal.utils.sem_clusters import get_semantic_indices
 logger = logging.getLogger()
 
 
-def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None ,em_tokenizer = None, problem_id = None):
+def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -64,6 +64,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             )
 
     for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
+        old_i = i
         # generation
         gen_beams = [b for b in beams if not b.pruned]
         if len(gen_beams) == 0:
@@ -126,8 +127,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
-            selected_text.append(beam.current_text)
-            selected_scores.apeend([agg_scores[best_score_ind]])
+            selected_text.append(beam.next_texts[best_score_ind])
+            selected_scores.append([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
             if (
@@ -137,7 +138,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 # stopped on EOS, prune
                 beam.pruned = True
         
-        get_semantic_indices(config, em_model ,em_tokenizer, selected_text, selected_scores, is_non_dss=True, iteration_number=i, problem_id=problem_id)
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
@@ -168,9 +169,10 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     return output
 
 
-def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
+def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _dvts(problems, config, llm, prm, em_model ,em_tokenizer , examples["problem_id"][0])
+    print("Length of problems: ", len(problems))
+    beam_results = _dvts(problems, config, llm, prm, em_model, examples["unique_id"][0])
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

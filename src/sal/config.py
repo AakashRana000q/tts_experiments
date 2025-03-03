@@ -19,6 +19,8 @@ from typing import Literal
 from huggingface_hub import get_full_repo_name
 
 from sal.utils.hub import get_dataset_revisions
+from datetime import datetime
+import os
 
 @dataclass
 class Config:
@@ -73,6 +75,9 @@ class Config:
     # cluster_sizes: Literal[4,8,16,32,64,128] = 4
     em_batch_size: int = 128
 
+    log_file = ""
+    log_dir = ""
+
     def __post_init__(self):
         if self.approach == "dvts":
             if self.n % self.beam_width != 0:
@@ -83,6 +88,10 @@ class Config:
             # TODO: implemented a batched version
             if self.search_batch_size != 1:
                 raise ValueError("search_batch_size should be 1 for beam_search")
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        self.log_dir = f"logs/{self.approach}/{timestamp}_cluster_logs"
+        self.log_file = f"{self.log_dir}/cluster_log.json"
 
         # Setting up push to hub dataset
         if self.push_to_hub:

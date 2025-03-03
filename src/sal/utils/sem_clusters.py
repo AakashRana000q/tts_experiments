@@ -7,32 +7,42 @@ import pandas as pd
 from sal.config import Config
 from scipy.cluster.hierarchy import linkage, fcluster
 import json
-from datetime import datetime
 import os
 
-def log_semantic_clusters(num_samples, num_clusters, agg_scores, iteration_number, problem_id):
+
+def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iteration_number, problem_id):
     """
-    Log semantic clustering information to a JSON file with a unique timestamp.
+    Log semantic clustering information to a JSON file, appending new entries.
+    If the file doesn't exist, it starts with an empty list.
     """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-    log_dir = "logs"
-    
-    os.makedirs(log_dir, exist_ok=True)
-    filename = f"{log_dir}/cluster_log_{timestamp}.json"
-    
-    log_data = {
-        "timestamp": timestamp,
+
+    print("+"*20,f"Logging  problem_id {problem_id} at iteration {iteration_number}","+"*20)
+    log_file = config.log_file
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                log_data = json.load(f)
+                if not isinstance(log_data, list):
+                    log_data = []  
+        except json.JSONDecodeError:
+            log_data = []  
+    else:
+        log_data = []
+
+    new_entry = {
         "num_samples": num_samples,
         "num_clusters": num_clusters,
         "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
         "iteration_number": iteration_number,
         "problem_id": problem_id
     }
-    
-    with open(filename, 'w') as f:
+
+    log_data.append(new_entry)
+
+    with open(log_file, 'w') as f:
         json.dump(log_data, f, indent=4)
-    
-    return filename
+
+    return log_file
 
 def clean_solutions(ls):
     cleaned_ls = []
@@ -47,12 +57,12 @@ def clean_solutions(ls):
 
 def get_optimal_clusters(liss,em_model,em_batch_size):
     if(len(liss)==1):
-        return 1
-    embeddings = em_model.encode(liss, batch_size=128, convert_to_tensor=False)
+        return 1,[0]
+    embeddings = em_model.encode(liss, batch_size=em_batch_size, convert_to_tensor=False)
     embeddings = np.array(embeddings)
     
     Z = linkage(embeddings, method='average', metric='cosine')
-    clusters = fcluster(Z, 0.05, criterion='distance') - 1 # subtract to get 0-indexed labels
+    clusters = fcluster(Z, 0.05, criterion='distance') - 1 
     K = len(np.unique(clusters))
 
     return K,clusters.tolist()
@@ -73,6 +83,7 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
 
     if is_non_dss:
         log_semantic_clusters(
+            config,
             num_samples=len(active_text),
             num_clusters=num_clusters,
             agg_scores=agg_scores,
@@ -92,10 +103,12 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
     final_selection = pd.concat([selected, remaining])
 
     ret_ind = final_selection["index"].tolist()
+    nc_log = len(final_selection["group"].unique())
 
     log_semantic_clusters(
+        config,
         num_samples=len(ret_ind),
-        num_clusters=num_clusters,
+        num_clusters=nc_log,
         agg_scores=agg_scores,
         iteration_number=iteration_number,
         problem_id=problem_id,

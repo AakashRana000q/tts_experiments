@@ -29,7 +29,7 @@ logger = logging.getLogger()
 from sal.utils.score import aggregate_scores
 
 
-def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None ,em_tokenizer = None, problem_id = None) -> list[Beam]:
+def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -63,6 +63,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
     completed_beams: list[Beam] = []
 
     for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
+        old_i = i
         if i == 0:
             active_beams = [b for b in beams if not b.pruned]
         else:
@@ -177,9 +178,9 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
                 beam.pruned = True
             else:
                 selected_scores.append(agg_scores[idx])
-                selected_text.append(beam.current_text)
+                selected_text.append(beam.next_texts[0])
         
-        get_semantic_indices(config, em_model ,em_tokenizer, selected_text, selected_scores, is_non_dss=True, iteration_number=i, problem_id=problem_id)
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
 
     # Filter completed beams for those with top config.n scores
     if config.sort_completed:
@@ -207,7 +208,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
 
 def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _beam_search(problems, config, llm, prm, em_model ,em_tokenizer , examples["problem_id"][0])
+    beam_results = _beam_search(problems, config, llm, prm, em_model ,examples["unique_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
