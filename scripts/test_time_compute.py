@@ -62,9 +62,8 @@ def main():
     )
     prm = load_prm(config)
 
-    if(config.approach=="dss"):
-        em_tokenizer = AutoTokenizer.from_pretrained(config.em_path)
-        em_model = AutoModel.from_pretrained(config.em_path)
+    em_tokenizer = AutoTokenizer.from_pretrained(config.em_path)
+    em_model = AutoModel.from_pretrained(config.em_path)
 
     dataset = get_dataset(config)
     dataset = dataset.map(

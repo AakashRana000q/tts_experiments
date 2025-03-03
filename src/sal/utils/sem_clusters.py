@@ -58,8 +58,12 @@ def optimal_clusters_silhouette(embeddings,config):
 
     return best_k
 
-def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_scores):
-    active_text = [b.current_text for b in active_beams]
+def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
+    if not is_non_dss:
+        active_text = [b.current_text for b in active_beams]
+    else:
+        active_text = active_beams
+
     agg_scores = np.array(agg_scores).flatten()
     cleaned_ls = clean_solutions(active_text)
 
@@ -74,6 +78,12 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     num_select = (config.n // config.beam_width)
     num_clusters = len(set(labels))
 
+    // TODO: Add Logging for non dss;
+    // Log num_samples , num_clusters, agg_scores, iteration_number, problem_id
+
+    if is_non_dss:
+        return num_clusters
+
     df = pd.DataFrame({"index": range(len(active_text)), "score": agg_scores, "group": labels})
     df = df.sort_values(by="score", ascending=False)
 
@@ -85,6 +95,8 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     final_selection = pd.concat([selected, remaining])
 
     ret_ind = final_selection["index"].tolist()
+
+    // TODO: Add Logging for dss;
     return ret_ind
 
 

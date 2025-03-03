@@ -169,9 +169,15 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
             -(config.n // config.beam_width) :
         ]
 
+        selected_scores = []
+        selected_text = []
+
         for idx, beam in enumerate(active_beams):
             if idx not in top_indices:
                 beam.pruned = True
+            else:
+                selected_scores.append(agg_scores[idx])
+                selected_text.append(beam.current_text)
 
     # Filter completed beams for those with top config.n scores
     if config.sort_completed:

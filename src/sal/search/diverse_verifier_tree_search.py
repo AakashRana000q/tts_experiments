@@ -115,6 +115,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
 
         all_scores = prm.score(prompts, completions)
+        selected_scores = []
+        selected_text = []
 
         for beam, scores in zip(gen_beams, all_scores, strict=True):
             agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
@@ -122,6 +124,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
+            selected_text.append(beam.current_text)
+            selected_scores.apeend([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
             if (
@@ -135,6 +139,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM):
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
                 beam.pruned = True
+
+
 
     # we need to copy the results from the last iteration in to beam_width beams as otherwise we would only have n/m results
     output: list[Beam] = []
