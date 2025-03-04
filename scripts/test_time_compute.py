@@ -67,7 +67,7 @@ def main():
 
     dataset = get_dataset(config)
     # df = pd.DataFrame(dataset)
-    # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=2, random_state=42))
+    # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=1, random_state=42))
     # dataset = Dataset.from_pandas(df)
 
     os.makedirs(config.log_dir, exist_ok=True)
