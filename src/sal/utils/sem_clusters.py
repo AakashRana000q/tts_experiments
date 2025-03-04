@@ -67,27 +67,13 @@ def get_optimal_clusters(liss,em_model,em_batch_size):
 
     return K,clusters.tolist()
 
-def optimal_clusters_silhouette(embeddings,config):
-    best_k = 1
-    best_score = -1
-    total_samples = embeddings.shape[0]
-    for k in [4,8,16,32,64,128,256,512]:  #add config
-        if k>=total_samples:
-            continue
 
-        k = min(k, total_samples-1)
-        kmeans = KMeans(n_clusters=k, random_state=config.seed, n_init=10)
-        labels = kmeans.fit_predict(embeddings)
-        score = silhouette_score(embeddings, labels)
-
-        if score > best_score:
-            best_k = k
-            best_score = score
-
-    return best_k
-
-def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_scores):
-    active_text = [b.current_text for b in active_beams]
+def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
+    
+    if not is_non_dss:
+        active_text = [b.next_texts[0] for b in active_beams]
+    else:
+        active_text = active_beams
     agg_scores = np.array(agg_scores).flatten()
     cleaned_ls = clean_solutions(active_text)
 
@@ -129,10 +115,3 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     )
 
     return ret_ind
-
-
-
-
-
-
-
