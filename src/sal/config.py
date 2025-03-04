@@ -25,12 +25,14 @@ import os
 @dataclass
 class Config:
     approach: Literal["best_of_n", "beam_search", "dvts", "dss"] = "dss"
-    model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
     gpu_memory_utilization: float = (
         0.5
     )
     prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
+    
     # Output Related Options
     output_dir: str = None
     num_proc: int = None
