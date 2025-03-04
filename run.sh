@@ -36,13 +36,13 @@ for FUNCTION in "${valid_functions[@]}"; do
     echo "Running with mode=$MODE, function=$FUNCTION, n=$N"
     echo "----------------------------------------"
     
-    # python scripts/test_time_compute.py \
-    #     "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
-    #     --n=$N \
-    #     --num_samples=500 \
-    #     --push_to_hub=true \
-    #     --hub_dataset_private=true \
-    #     --lookahead=0
+    python scripts/test_time_compute.py \
+        "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
+        --n=$N \
+        --num_samples=500 \
+        --push_to_hub=true \
+        --hub_dataset_private=true \
+        --lookahead=0
         
     echo "Completed $FUNCTION"
     echo "----------------------------------------"
