@@ -109,7 +109,7 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
         config,
         num_samples=len(ret_ind),
         num_clusters=nc_log,
-        agg_scores=agg_scores,
+        agg_scores=(final_selection["score"].tolist()),
         iteration_number=iteration_number,
         problem_id=problem_id,
     )
