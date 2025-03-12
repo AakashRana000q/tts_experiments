@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Fixed value for N
-N=1024
+N=512
 
 # Array of valid functions
-valid_functions=("beam_search" "dvts" "dss")
+valid_functions=("dss")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
@@ -16,8 +16,7 @@ for FUNCTION in "${valid_functions[@]}"; do
         "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
         --n=$N \
         --num_samples=500 \
-        --push_to_hub=true \
-        --hub_dataset_private=true \
+        --push_to_hub=false \
         --lookahead=0
         
     echo "Completed $FUNCTION"

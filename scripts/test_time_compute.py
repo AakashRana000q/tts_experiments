@@ -51,7 +51,6 @@ APPROACHES = {
 def main():
     parser = H4ArgumentParser(Config)
     config = parser.parse()
-
     approach_fn = APPROACHES[config.approach]
 
     num_gpus = torch.cuda.device_count()
@@ -66,11 +65,15 @@ def main():
     em_model = SentenceTransformer(config.em_path,device = torch.device("cuda:0"))
 
     dataset = get_dataset(config)
-    # df = pd.DataFrame(dataset)
-    # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=1, random_state=42))
-    # dataset = Dataset.from_pandas(df)
+    df = pd.DataFrame(dataset)
+    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42))
+    dataset = Dataset.from_pandas(df)
+    print("********************* Length = ",len(df),"*********************")
 
     os.makedirs(config.log_dir, exist_ok=True)
+    
+    if config.push_to_hub==False:
+        os.makedirs(f"/workspace/projects/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Log Dir = ",config.log_dir,"*********************")
 
     dataset = dataset.map(
