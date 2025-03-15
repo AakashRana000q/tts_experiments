@@ -71,7 +71,7 @@ def get_optimal_clusters(liss,em_model,em_batch_size):
 def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
     
     if not is_non_dss:
-        active_text = [b.next_texts[0] for b in active_beams]
+        active_text = [b.current_text for b in active_beams]
     else:
         active_text = active_beams
     agg_scores = np.array(agg_scores).flatten()

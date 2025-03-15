@@ -127,7 +127,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
-            selected_text.append(beam.next_texts[best_score_ind])
+            selected_text.append(beam.current_text)
             selected_scores.append([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
