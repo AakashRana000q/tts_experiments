@@ -69,16 +69,16 @@ def get_optimal_clusters(liss,em_model,em_batch_size):
 
 
 def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
-    
     if not is_non_dss:
-        active_text = [b.current_text for b in active_beams]
+        active_text = [b.next_texts[0] for b in active_beams]
+        selected_text = [b.current_text for b in active_beams]
     else:
         active_text = active_beams
     agg_scores = np.array(agg_scores).flatten()
+    cleaned_full_text = clean_solutions(selected_text)
     cleaned_ls = clean_solutions(active_text)
 
     num_clusters,labels = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
-
     num_select = (config.n // config.beam_width)
 
     if is_non_dss:
@@ -104,11 +104,13 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
 
     ret_ind = final_selection["index"].tolist()
     nc_log = len(final_selection["group"].unique())
+    num_clusters_full,labels_full = get_optimal_clusters(cleaned_full_text,em_model,config.em_batch_size)
+
 
     log_semantic_clusters(
         config,
         num_samples=len(ret_ind),
-        num_clusters=nc_log,
+        num_clusters=num_clusters_full,
         agg_scores=(final_selection["score"].tolist()),
         iteration_number=iteration_number,
         problem_id=problem_id,
