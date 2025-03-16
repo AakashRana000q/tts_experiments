@@ -54,11 +54,27 @@ def clean_solutions(ls):
         cleaned_ls.append(cleaned_solution)
     return cleaned_ls
 
+def get_embeddings(text,em_model):
+    tokens = em_model.tokenizer.encode(text, add_special_tokens=False)
+    embeds = []
+    if(len(tokens)>256):
+        for start in range(0, len(tokens), 128):
+            end = min(start + 256, len(tokens))
+            chunk_tokens = tokens[start:end]
+            chunk_text = em_model.tokenizer.decode(chunk_tokens)  # Convert back to text
+            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False)  # Get embedding
+            embeds.append(chunk_embedding)
+            if end == len(tokens):
+                break
+        return np.mean(np.array(embeds), axis=0)
+    return em_model.encode(text, convert_to_tensor=False)
 
 def get_optimal_clusters(liss,em_model,em_batch_size):
     if(len(liss)==1):
         return 1,[0]
-    embeddings = em_model.encode(liss, batch_size=em_batch_size, convert_to_tensor=False)
+    embeddings = []
+    for item in liss:
+        embeddings.append(get_embeddings(item,em_model))
     embeddings = np.array(embeddings)
     
     Z = linkage(embeddings, method='average', metric='cosine')

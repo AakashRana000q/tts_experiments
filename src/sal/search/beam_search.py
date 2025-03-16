@@ -153,6 +153,9 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
         if len(active_beams) == 0:
             break
 
+        if len(completed_beams) >= config.n:
+            break
+
         # Filter duplicate active beams
         if config.filter_duplicates:
             # Create a dictionary to filter duplicates and retain order
