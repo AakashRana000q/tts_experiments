@@ -169,9 +169,16 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, p
         # Get indices for top completions equally sampled from all buckets
         top_indices = get_semantic_indices(config,em_model,active_beams,agg_scores,is_non_dss=False,iteration_number=old_i,problem_id=problem_id)
 
+        selected_scores = []
+        selected_text = []
         for idx, beam in enumerate(active_beams):
             if idx not in top_indices:
                 beam.pruned = True
+            else:
+                selected_scores.append(agg_scores[idx])
+                selected_text.append(beam.current_text + beam.next_texts[0])
+        
+        get_semantic_indices(config,em_model,selected_text,selected_scores,is_non_dss=True,iteration_number=old_i,problem_id=problem_id)
 
 
     # Filter completed beams for those with top config.n scores
