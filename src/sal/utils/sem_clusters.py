@@ -54,11 +54,27 @@ def clean_solutions(ls):
         cleaned_ls.append(cleaned_solution)
     return cleaned_ls
 
+def get_embeddings(text,em_model):
+    tokens = em_model.tokenizer.encode(text, add_special_tokens=False)
+    embeds = []
+    if(len(tokens)>256):
+        for start in range(0, len(tokens), 128):
+            end = min(start + 256, len(tokens))
+            chunk_tokens = tokens[start:end]
+            chunk_text = em_model.tokenizer.decode(chunk_tokens)  # Convert back to text
+            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False)  # Get embedding
+            embeds.append(chunk_embedding)
+            if end == len(tokens):
+                break
+        return np.mean(np.array(embeds), axis=0)
+    return em_model.encode(text, convert_to_tensor=False)
 
 def get_optimal_clusters(liss,em_model,em_batch_size):
     if(len(liss)==1):
         return 1,[0]
-    embeddings = em_model.encode(liss, batch_size=em_batch_size, convert_to_tensor=False)
+    embeddings = []
+    for item in liss:
+        embeddings.append(get_embeddings(item,em_model))
     embeddings = np.array(embeddings)
     
     Z = linkage(embeddings, method='average', metric='cosine')
@@ -69,7 +85,6 @@ def get_optimal_clusters(liss,em_model,em_batch_size):
 
 
 def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
-    
     if not is_non_dss:
         active_text = [b.next_texts[0] for b in active_beams]
     else:
@@ -78,7 +93,6 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
     cleaned_ls = clean_solutions(active_text)
 
     num_clusters,labels = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
-
     num_select = (config.n // config.beam_width)
 
     if is_non_dss:
@@ -103,15 +117,4 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
     final_selection = pd.concat([selected, remaining])
 
     ret_ind = final_selection["index"].tolist()
-    nc_log = len(final_selection["group"].unique())
-
-    log_semantic_clusters(
-        config,
-        num_samples=len(ret_ind),
-        num_clusters=nc_log,
-        agg_scores=(final_selection["score"].tolist()),
-        iteration_number=iteration_number,
-        problem_id=problem_id,
-    )
-
     return ret_ind

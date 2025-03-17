@@ -153,6 +153,9 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
         if len(active_beams) == 0:
             break
 
+        if len(completed_beams) >= config.n:
+            break
+
         # Filter duplicate active beams
         if config.filter_duplicates:
             # Create a dictionary to filter duplicates and retain order
@@ -178,7 +181,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model 
                 beam.pruned = True
             else:
                 selected_scores.append(agg_scores[idx])
-                selected_text.append(beam.next_texts[0])
+                selected_text.append(beam.current_text)
         
         get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
 
