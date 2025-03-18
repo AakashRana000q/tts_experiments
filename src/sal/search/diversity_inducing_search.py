@@ -69,16 +69,16 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
     for i in tqdm(range(config.num_iterations), desc="DIS search iterations"):
         old_i = i
 
-        if(len(curr_beams!=config.n_beams)):
+        if(len(curr_beams)!=config.n_beams):
             repeats = (config.n_beams // len(curr_beams)) + 1
 
             extended_active_beams = [
                 copy.deepcopy(b) for b in (curr_beams * repeats)[: config.n_beams]
             ]
             curr_beams = extended_active_beams
-            if len(curr_beams) != config.n:
+            if len(curr_beams) != config.n_beams:
                 raise ValueError(
-                    f"Expected {config.n} active beams, but got {len(curr_beams)}"
+                    f"Expected {config.n_beams} active beams, but got {len(curr_beams)}"
                 )
         if i == config.num_iterations - 1:
             # last iteration, generate to EOS

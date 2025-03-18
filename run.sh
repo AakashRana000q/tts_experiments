@@ -1,10 +1,10 @@
 #!/bin/bash
 
 # Fixed value for N
-N=512
+N=256
 
 # Array of valid functions
-valid_functions=("dss")
+valid_functions=("dis")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
@@ -17,7 +17,7 @@ for FUNCTION in "${valid_functions[@]}"; do
         --n=$N \
         --num_samples=500 \
         --push_to_hub=false \
-        --lookahead=0
+        --lookahead=0 2>&1 | tee output_${FUNCTION}.log
         
     echo "Completed $FUNCTION"
     echo "----------------------------------------"

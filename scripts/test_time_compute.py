@@ -28,7 +28,7 @@ from sal.models.reward_models import load_prm
 from datasets import Dataset
 import pandas as pd
 import os
-from sal.search import beam_search, best_of_n, dvts, dss
+from sal.search import beam_search, best_of_n, dvts, dss, dis
 from sal.utils.data import get_dataset, save_dataset
 from sal.utils.parser import H4ArgumentParser
 from sal.utils.score import score
@@ -44,7 +44,8 @@ APPROACHES = {
     "beam_search": beam_search,
     "dvts": dvts,
     "best_of_n": best_of_n,
-    "dss":dss
+    "dss":dss,
+    "dis":dis
 }
 
 
@@ -73,7 +74,7 @@ def main():
     os.makedirs(config.log_dir, exist_ok=True)
     
     if config.push_to_hub==False:
-        os.makedirs(f"/workspace/projects/tts_experiments/data/{config.model_path}", exist_ok=True)
+        os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Log Dir = ",config.log_dir,"*********************")
 
     dataset = dataset.map(

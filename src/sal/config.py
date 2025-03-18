@@ -24,7 +24,7 @@ import os
 
 @dataclass
 class Config:
-    approach: Literal["best_of_n", "beam_search", "dvts", "dss"] = "dss"
+    approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis"] = "dis"
     # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
     model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
@@ -81,7 +81,7 @@ class Config:
     log_dir = ""
 
     def __post_init__(self):
-        if self.approach == "dvts":
+        if self.approach == "dvts" or self.approach == "dis":
             if self.n % self.beam_width != 0:
                 raise ValueError("n should be a multiple of beam_width")
             self.n_beams = self.n // self.beam_width

@@ -159,9 +159,9 @@ def get_num_selects(target,budget):
         surplus = total - target
         for cat in [2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
-                # remove = min(surplus, samples[i])
-                samples[i] -= rem[cat-2]
-                surplus -= rem[cat-2]
+                remove = min(surplus, rem[cat-2])
+                samples[i] -= remove
+                surplus -= remove
                 if surplus == 0: break
             if surplus == 0: break
 
