@@ -118,3 +118,52 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
 
     ret_ind = final_selection["index"].tolist()
     return ret_ind
+
+def get_diversity_budget(config:Config,beam,em_model):
+    active_text = list(beam.next_texts)
+    cleaned_ls = clean_solutions(active_text)
+    num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
+    ratio_uniq = (num_clusters/len(cleaned_ls))
+
+    if(ratio_uniq<0.13):   
+        return 1
+    elif(ratio_uniq<0.26):
+        return 2
+    elif(ratio_uniq<0.52):
+        return 3
+    return 4
+
+def get_num_selects(target,budget):
+    samples = []
+    for cat in budget:
+        if cat == 1: samples.append(1)
+        elif cat == 2: samples.append(2)
+        elif cat == 3: samples.append(4)
+        elif cat == 4: samples.append(6)
+
+    total = sum(samples)
+
+    if total < target:
+        deficit = target - total
+        for cat in [4, 3, 2, 1]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                available = 8 - samples[i]
+                add = min(deficit, available)
+                samples[i] += add
+                deficit -= add
+                if deficit == 0: break
+            if deficit == 0: break
+
+    elif total > target:
+        surplus = total - target
+        for cat in [2,3,4,2,3,4]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                # remove = min(surplus, samples[i])
+                samples[i] -= 1
+                surplus -= 1
+                if surplus == 0: break
+            if surplus == 0: break
+
+    assert sum(samples) == target, f"Invalid total: {sum(samples)}"
+
+    return samples
