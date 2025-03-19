@@ -143,19 +143,8 @@ def get_num_selects(target,budget):
 
     total = sum(samples)
     rem = [1,2,3]
-
-    if total < target:
-        deficit = target - total
-        for cat in [4, 3, 2, 1]:
-            for i in [idx for idx, c in enumerate(budget) if c == cat]:
-                available = 8 - samples[i]
-                add = min(deficit, available)
-                samples[i] += add
-                deficit -= add
-                if deficit == 0: break
-            if deficit == 0: break
             
-    elif total > target:
+    if total > target:
         surplus = total - target
         for cat in [2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
@@ -165,6 +154,6 @@ def get_num_selects(target,budget):
                 if surplus == 0: break
             if surplus == 0: break
 
-    assert sum(samples) == target, f"Invalid total: {sum(samples)}"
+        assert sum(samples) == target, f"Invalid total: {sum(samples)}"
 
     return samples
