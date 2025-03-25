@@ -10,7 +10,7 @@ import json
 import os
 
 
-def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iteration_number, problem_id):
+def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iteration_number, problem_id,budget=None):
     """
     Log semantic clustering information to a JSON file, appending new entries.
     If the file doesn't exist, it starts with an empty list.
@@ -29,14 +29,23 @@ def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iterati
     else:
         log_data = []
 
-    new_entry = {
-        "num_samples": num_samples,
-        "num_clusters": num_clusters,
-        "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
-        "iteration_number": iteration_number,
-        "problem_id": problem_id
-    }
-
+    if budget is not None:
+        new_entry = {
+            "num_samples": num_samples,
+            "num_clusters": num_clusters,
+            "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+            "iteration_number": iteration_number,
+            "problem_id": problem_id,
+            "budget":budget,
+        }
+    else:
+        new_entry = {
+            "num_samples": num_samples,
+            "num_clusters": num_clusters,
+            "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+            "iteration_number": iteration_number,
+            "problem_id": problem_id
+        }
     log_data.append(new_entry)
 
     with open(log_file, 'w') as f:
@@ -84,7 +93,7 @@ def get_optimal_clusters(liss,em_model,em_batch_size):
     return K,clusters.tolist()
 
 
-def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0):
+def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0,budget=None):
     if not is_non_dss:
         active_text = [b.next_texts[0] for b in active_beams]
     else:
@@ -103,6 +112,7 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
             agg_scores=agg_scores,
             iteration_number=iteration_number,
             problem_id=problem_id,
+            budget=budget
         )
         return num_clusters
 
@@ -131,7 +141,9 @@ def get_diversity_budget(config:Config,beam,em_model):
         return 2
     elif(ratio_uniq<0.52):
         return 3
-    return 4
+    elif(ratio_uniq<0.76):
+        return 4
+    return 5
 
 def get_num_selects(target,budget):
     samples = []
@@ -140,13 +152,14 @@ def get_num_selects(target,budget):
         elif cat == 2: samples.append(2)
         elif cat == 3: samples.append(4)
         elif cat == 4: samples.append(6)
+        elif cat == 5: samples.append(8)
 
     total = sum(samples)
-    rem = [1,2,3]
+    rem = [1,2,3,4]
             
     if total > target:
         surplus = total - target
-        for cat in [2,3,4,2,3,4]:
+        for cat in [2,3,4,5,2,3,4,5]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove
