@@ -24,7 +24,7 @@ import os
 
 @dataclass
 class Config:
-    approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis"] = "dis"
+    approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis","bpds"] = "dis"
     # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
     model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
