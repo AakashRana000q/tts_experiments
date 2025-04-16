@@ -28,7 +28,7 @@ from sal.models.reward_models import load_prm
 from datasets import Dataset
 import pandas as pd
 import os
-from sal.search import beam_search, best_of_n, dvts, dss, dis
+from sal.search import beam_search, best_of_n, dvts, dss, dis, bpds
 from sal.utils.data import get_dataset, save_dataset
 from sal.utils.parser import H4ArgumentParser
 from sal.utils.score import score
@@ -45,7 +45,8 @@ APPROACHES = {
     "dvts": dvts,
     "best_of_n": best_of_n,
     "dss":dss,
-    "dis":dis
+    "dis":dis,
+    "bpds":bpds,
 }
 
 

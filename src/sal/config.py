@@ -81,7 +81,7 @@ class Config:
     log_dir = ""
 
     def __post_init__(self):
-        if self.approach == "dvts" or self.approach == "dis":
+        if self.approach == "dvts" or self.approach == "dis" or self.approach == "bpds":
             if self.n % self.beam_width != 0:
                 raise ValueError("n should be a multiple of beam_width")
             self.n_beams = self.n // self.beam_width
