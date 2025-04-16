@@ -119,7 +119,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
         targ = len(gen_beams)*4
         num_selects = num_selects_bpds(targ,budget)
 
-        for beam, num_bud in zip(beams, num_selects):
+        for beam, num_bud in zip(gen_beams, num_selects):
             num_buds = min(num_bud,len(beam.next_texts))
             selected_indices = set(random.sample(range(len(beam.next_texts)), num_buds))
 

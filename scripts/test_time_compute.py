@@ -77,7 +77,8 @@ def main():
     if config.push_to_hub==False:
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Log Dir = ",config.log_dir,"*********************")
-
+    print("********************* Agg strategy = ",config.agg_strategy,"*********************")
+    
     dataset = dataset.map(
         approach_fn,
         batched=True,
