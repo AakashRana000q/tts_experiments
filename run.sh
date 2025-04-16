@@ -4,7 +4,7 @@
 N=256
 
 # Array of valid functions
-valid_functions=("dis")
+valid_functions=("bpds")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do

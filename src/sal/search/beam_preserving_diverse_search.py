@@ -27,7 +27,7 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
-from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,get_num_selects
+from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,num_selects_bpds
 
 
 logger = logging.getLogger()
@@ -116,7 +116,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             budget.append(get_diversity_budget(config,beam,em_model))
 
         prompts, completions = [], []
-        num_selects = get_num_selects(config.n,budget)
+        num_selects = num_selects_bpds(config.n,budget)
 
         for beam, num_bud in zip(beams, num_selects):
             selected_indices = set(random.sample(range(len(beam.next_texts)), num_bud))
