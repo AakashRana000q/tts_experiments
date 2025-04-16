@@ -107,7 +107,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
             beam.lookahead_texts = gen_result.lookahead_texts
-            if len(beam.next_texts) != config.beam_width:
+            if len(beam.next_texts) != (config.beam_width*2):
                 beam.pruned = True
                 # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
                 logger.warning(
@@ -116,10 +116,12 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             budget.append(get_diversity_budget(config,beam,em_model))
 
         prompts, completions = [], []
-        num_selects = num_selects_bpds(config.n,budget)
+        targ = len(gen_beams)*4
+        num_selects = num_selects_bpds(targ,budget)
 
         for beam, num_bud in zip(beams, num_selects):
-            selected_indices = set(random.sample(range(len(beam.next_texts)), num_bud))
+            num_buds = min(num_bud,len(beam.next_texts))
+            selected_indices = set(random.sample(range(len(beam.next_texts)), num_buds))
 
             beam.next_texts = [el for idx, el in enumerate(beam.next_texts) if idx in selected_indices]
             beam.stop_reasons = [el for idx, el in enumerate(beam.stop_reasons) if idx in selected_indices]
@@ -152,7 +154,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 # stopped on EOS, prune
                 beam.pruned = True
         
-        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id,budget=budget)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
