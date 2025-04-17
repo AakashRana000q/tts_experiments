@@ -2,6 +2,7 @@
 
 # Fixed value for N
 N=256
+NUM_ITERATIONS = 39
 
 # Array of valid functions
 valid_functions=("bpds")
@@ -16,6 +17,7 @@ for FUNCTION in "${valid_functions[@]}"; do
         "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
         --n=$N \
         --num_samples=500 \
+        --num_iterations=$NUM_ITERATIONS \
         --push_to_hub=false \
         --lookahead=0 2>&1 | tee output_${FUNCTION}.log
         
