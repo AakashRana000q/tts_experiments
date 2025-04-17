@@ -185,7 +185,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     return output
 
 
-def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM, em_model=None):
+def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM):
     sampling_params = SamplingParams(
             temperature=config.temperature,
             max_tokens=2048,
@@ -273,7 +273,7 @@ def bpds(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     print("Length of problems: ", len(problems))
     beam_results = _bpds(problems, config, llm, prm, em_model, examples["unique_id"][0])
-    beam_results = extend_bpds(beam_results, config, llm, prm, em_model)
+    beam_results = extend_bpds(beam_results, config, llm, prm)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
