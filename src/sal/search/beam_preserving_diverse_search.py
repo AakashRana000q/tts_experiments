@@ -170,7 +170,7 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 Beam(
                     prompt=beam.prompt,
                     index=beam.index,
-                    current_text=beam.previous_text + beam.next_texts[i],
+                    current_text=beam.previous_text,
                     next_texts=None,
                     lookahead_texts=None,
                     stop_reasons=None,
@@ -182,13 +182,110 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 )
             )
 
+    
+
     return output
 
+
+def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM, em_model=None):
+    sampling_params = SamplingParams(
+            temperature=config.temperature,
+            max_tokens=2048,
+            top_p=config.top_p,
+            n=1,
+        )
+    
+    convs = [
+        build_conv(b.prompt, b.current_text, config.system_prompt)
+        for b in final_beams
+    ]
+    continue_final_message = True
+    add_generation_prompt = False
+
+    tokenizer = llm.get_tokenizer()
+    if config.custom_chat_template is not None:
+        tokenizer.chat_template = config.custom_chat_template
+    templated_convs = tokenizer.apply_chat_template(
+        convs,
+        add_generation_prompt=add_generation_prompt,
+        continue_final_message=continue_final_message,
+        tokenize=False,
+    )
+    lookahead = 0
+    gen_results = generate_k_steps(
+        templated_convs, lookahead, llm, sampling_params, config.beam_width
+    )
+
+    budget = []
+    for beam, gen_result in zip(final_beams, gen_results, strict=True):
+        beam.next_texts = gen_result.next_texts
+        beam.stop_reasons = gen_result.stop_reasons
+        beam.lookahead_texts = gen_result.lookahead_texts
+        if len(beam.next_texts) != (config.beam_width*2):
+            beam.pruned = True
+            # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
+            logger.warning(
+                f"beam {beam.index} has {len(beam.next_texts)} completions"
+            )
+        budget.append(get_diversity_budget(config,beam,em_model))
+
+    prompts, completions = [], []
+
+    for beam in final_beams:
+        selected_indices = [0,1,2,3]
+        beam.next_texts = [el for idx, el in enumerate(beam.next_texts) if idx in selected_indices]
+        beam.stop_reasons = [el for idx, el in enumerate(beam.stop_reasons) if idx in selected_indices]
+        beam.lookahead_texts = [el for idx, el in enumerate(beam.lookahead_texts) if idx in selected_indices]
+
+        prompts.append(beam.prompt)
+        completions.append([beam.current_text + t for t in beam.lookahead_texts])
+
+
+    # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
+
+    all_scores = prm.score(prompts, completions)
+
+    for beam, scores in zip(final_beams, all_scores, strict=True):
+        agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
+        best_score_ind = np.argmax(agg_scores)
+        beam.all_scores = scores
+        beam.previous_text = beam.current_text
+        beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
+        beam.history.append(beam.next_texts[best_score_ind])
+        beam.best_scores = scores[best_score_ind]
+        if (
+            beam.next_texts[best_score_ind] == ""
+            or beam.stop_reasons[best_score_ind] == "EOS"
+        ):
+            # stopped on EOS, prune
+            beam.pruned = True
+    
+
+    output: list[Beam] = []
+    for beam in final_beams:
+        for i in range(len(beam.next_texts)):
+            output.append(
+                Beam(
+                    prompt=beam.prompt,
+                    index=beam.index,
+                    current_text=beam.previous_text,
+                    next_texts=None,
+                    lookahead_texts=None,
+                    stop_reasons=None,
+                    best_scores=beam.all_scores[i],
+                    all_scores=beam.all_scores,
+                    previous_text=beam.current_text,
+                    pruned=beam.pruned,
+                    history=beam.history,
+                )
+            )
+    return output
 
 def bpds(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     print("Length of problems: ", len(problems))
     beam_results = _bpds(problems, config, llm, prm, em_model, examples["unique_id"][0])
+    beam_results = extend_bpds(beam_results, config, llm, prm, em_model)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
