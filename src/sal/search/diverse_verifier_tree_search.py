@@ -149,22 +149,21 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     # we need to copy the results from the last iteration in to beam_width beams as otherwise we would only have n/m results
     output: list[Beam] = []
     for beam in beams:
-        for i in range(config.beam_width):
-            output.append(
-                Beam(
-                    prompt=beam.prompt,
-                    index=beam.index,
-                    current_text=beam.previous_text,
-                    next_texts=None,
-                    lookahead_texts=None,
-                    stop_reasons=None,
-                    best_scores=beam.all_scores[i],
-                    all_scores=beam.all_scores,
-                    previous_text=beam.current_text,
-                    pruned=beam.pruned,
-                    history=beam.history,
-                )
+        output.append(
+            Beam(
+                prompt=beam.prompt,
+                index=beam.index,
+                current_text=beam.previous_text,
+                next_texts=None,
+                lookahead_texts=None,
+                stop_reasons=None,
+                best_scores=None,
+                all_scores=beam.all_scores,
+                previous_text=beam.current_text,
+                pruned=beam.pruned,
+                history=beam.history,
             )
+        )
 
     return output
 

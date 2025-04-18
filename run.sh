@@ -2,7 +2,7 @@
 
 # Fixed value for N
 N=256
-NUM_ITERATIONS = 39
+NUM_ITERATIONS=39
 
 # Array of valid functions
 valid_functions=("dvts")

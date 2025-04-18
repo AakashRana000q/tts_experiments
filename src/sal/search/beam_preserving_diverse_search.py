@@ -165,38 +165,38 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     # we need to copy the results from the last iteration in to beam_width beams as otherwise we would only have n/m results
     output: list[Beam] = []
     for beam in beams:
-        for i in range(len(beam.next_texts)):
-            output.append(
-                Beam(
-                    prompt=beam.prompt,
-                    index=beam.index,
-                    current_text=beam.previous_text,
-                    next_texts=None,
-                    lookahead_texts=None,
-                    stop_reasons=None,
-                    best_scores=beam.all_scores[i],
-                    all_scores=beam.all_scores,
-                    previous_text=beam.current_text,
-                    pruned=beam.pruned,
-                    history=beam.history,
-                )
+        output.append(
+            Beam(
+                prompt=beam.prompt,
+                index=beam.index,
+                current_text=beam.previous_text,
+                next_texts=None,
+                lookahead_texts=None,
+                stop_reasons=None,
+                best_scores=None,
+                all_scores=beam.all_scores,
+                previous_text=beam.current_text,
+                pruned=beam.pruned,
+                history=beam.history,
             )
+        )
 
     return output
 
 
 def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM):
     sampling_params = SamplingParams(
-            temperature=config.temperature,
-            max_tokens=2048,
-            top_p=config.top_p,
-            n=1,
-        )
+        temperature=config.temperature,
+        max_tokens=2048,
+        top_p=config.top_p,
+        n=1,
+    )
     
     convs = [
         build_conv(b.prompt, b.current_text, config.system_prompt)
         for b in final_beams
     ]
+
     continue_final_message = True
     add_generation_prompt = False
 
