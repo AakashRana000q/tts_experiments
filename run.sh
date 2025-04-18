@@ -5,7 +5,7 @@ N=256
 NUM_ITERATIONS = 39
 
 # Array of valid functions
-valid_functions=("bpds")
+valid_functions=("dvts")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
