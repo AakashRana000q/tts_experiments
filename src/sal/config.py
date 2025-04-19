@@ -64,7 +64,7 @@ class Config:
     agg_strategy: str = "last"  # Options: "last", "min", "prod"
 
     # DVTS / Beam Search options
-    beam_width: int = 4  # m in the paper
+    beam_width: int = 8  # m in the paper
     num_iterations: int = 40
     lookahead: int = 1
 
@@ -84,7 +84,9 @@ class Config:
         if self.approach == "dvts" or self.approach == "dis" or self.approach == "bpds":
             if self.n % self.beam_width != 0:
                 raise ValueError("n should be a multiple of beam_width")
-            self.n_beams = self.n // self.beam_width
+            # self.n_beams = self.n // self.beam_width
+            # Hardcoding to generate only one beam for dataset generation
+            self.n_beams = 1
 
         if self.approach == "beam_search":
             # TODO: implemented a batched version

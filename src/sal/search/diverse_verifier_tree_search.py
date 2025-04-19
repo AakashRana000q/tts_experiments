@@ -20,13 +20,15 @@ from collections import defaultdict
 import numpy as np
 from tqdm import tqdm
 from vllm import LLM, SamplingParams
+import random
+
 
 from sal.config import Config
 from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
+from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,num_selects_bpds
 
 from .utils import Beam, build_conv, generate_k_steps
-from sal.utils.sem_clusters import get_semantic_indices
 
 
 logger = logging.getLogger()
@@ -60,11 +62,15 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                     pruned=False,
                     stop_reasons=None,
                     history=[],
+                    diversity_class=[],
+                    parent_beams=[],
+                    generated_beams=[],
                 )
             )
+    
+    print('*'*20, "Toatal Beams Per Problem = ",len(beams)/len(batch_of_prompts), '*'*20)
 
     for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
-        old_i = i
         # generation
         gen_beams = [b for b in beams if not b.pruned]
         if len(gen_beams) == 0:
@@ -114,23 +120,23 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 )
             prompts.append(beam.prompt)
             completions.append([beam.current_text + t for t in beam.lookahead_texts])
+            gen_beams.generated_beams.append(beam.next_texts)
+            gen_beams.diversity_class.append(get_diversity_budget(config,beam,em_model))
 
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
-
         all_scores = prm.score(prompts, completions)
-        selected_scores = []
-        selected_text = []
 
         for beam, scores in zip(gen_beams, all_scores, strict=True):
             agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
-            best_score_ind = np.argmax(agg_scores)
+            top_indices = np.argsort(agg_scores)[-4:]
+            # Choose randomly from the top 4 best scores
+            best_score_ind = np.random.choice(top_indices)
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
-            selected_text.append(beam.current_text)
-            selected_scores.append([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
+            gen_beams.parent_beams.append(beam.next_texts[best_score_ind])
             if (
                 beam.next_texts[best_score_ind] == ""
                 or beam.stop_reasons[best_score_ind] == "EOS"
@@ -138,7 +144,6 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 # stopped on EOS, prune
                 beam.pruned = True
         
-        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
@@ -162,6 +167,9 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 previous_text=beam.current_text,
                 pruned=beam.pruned,
                 history=beam.history,
+                diversity_class=beam.diversity_class,
+                parent_beams=beam.parent_beams,
+                generated_beams=beam.generated_beams,
             )
         )
 
@@ -247,6 +255,9 @@ def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
                     previous_text=beam.current_text,
                     pruned=beam.pruned,
                     history=beam.history,
+                    diversity_class=beam.diversity_class,
+                    parent_beams=beam.parent_beams,
+                    generated_beams=beam.generated_beams,
                 )
             )
 
@@ -264,7 +275,7 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     for results in beam_results:
         grouped_results[results.prompt].append(results)
 
-    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": []}
+    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": [], "parent_beams": [], "generated_beams": [], "diversity_class": []}
 
     for p in problems:
         beams = grouped_results[p]
@@ -281,6 +292,9 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
         )
         results["scores"].append([b.best_scores for b in beams])
         results["completion_tokens"].append(-1)
+        results["parent_beams"].append([b.parent_beams for b in beams])
+        results["generated_beams"].append([b.generated_beams for b in beams])
+        results["diversity_class"].append([b.diversity_class for b in beams])
 
     # TODO: construct and store the tree
 
