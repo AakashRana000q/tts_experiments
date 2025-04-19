@@ -60,9 +60,9 @@ class Beam:
     stop_reasons: list[str | None] | None
     best_scores: list[float]  # the PRM scores
     all_scores: list[list[float]]  # all PRM scores
-    children: list[list[str]]
-    diversity: list[int]
-    org_steps: list[str]
+    children: list[list[str]] | None
+    diversity: list[int] | None
+    org_steps: list[str] | None
     previous_text: str | None
     pruned: False
     history: list[str]
@@ -155,6 +155,9 @@ def generate_k_steps(
             previous_text=None,
             pruned=False,
             history=[],
+            children=None,
+            diversity=None,
+            org_steps=None
         )
         outputs.append(beam_result)
 

@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Array of valid functions
 valid_functions=("data_pb")
 

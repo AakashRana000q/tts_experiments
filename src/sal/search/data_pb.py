@@ -30,7 +30,7 @@ from sal.utils.sem_clusters import get_diversity_budget
 logger = logging.getLogger()
 
 
-def _data_gen(batch_of_prompts: list[str],steps: list[list[str]], config: Config, llm: LLM, prm: PRM, em_model):
+def _data_gen(batch_of_prompts: list[str],steps: list[list[str]], config: Config, llm: LLM, em_model):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -124,10 +124,10 @@ def _data_gen(batch_of_prompts: list[str],steps: list[list[str]], config: Config
 
 
 
-def data_gen(examples, config: Config, llm: LLM, prm: PRM,em_model):
+def data_gen(examples, config: Config, llm: LLM,em_model):
     problems = examples["problem"]
     steps = examples['steps']
-    beam_results = _data_gen(problems,steps,config, llm, prm,em_model)
+    beam_results = _data_gen(problems,steps,config, llm,em_model)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
@@ -139,6 +139,6 @@ def data_gen(examples, config: Config, llm: LLM, prm: PRM,em_model):
     for p in problems:
         beams = grouped_results[p]
         results["diversity"].append(beams[0].diversity)
-        results["pred"].append(beams[0].children)
+        results["childs"].append(beams[0].children)
 
     return results

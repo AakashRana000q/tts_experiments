@@ -40,7 +40,7 @@ def main():
     )
     em_model = SentenceTransformer(config.em_path,device = torch.device("cuda:0"))
 
-    df = pd.read_json("/Users/arana1/Desktop/code/ML/search-and-learn/combined_pb.json")
+    df = pd.read_json("/workspace/tts_experiments/combined_pb.json")
     df = df.groupby('fin_source', group_keys=False).apply(lambda x: x.sample(n=2, random_state=42))
     df['num_steps'] = df['steps'].apply(lambda x:len(x))
     dataset = Dataset.from_pandas(df)
