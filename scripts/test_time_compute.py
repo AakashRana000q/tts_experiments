@@ -25,12 +25,14 @@ from vllm import LLM
 
 from sal.config import Config
 from sal.models.reward_models import load_prm
-from sal.search import beam_search, best_of_n, dvts, dss
+from datasets import Dataset
+import pandas as pd
+import os
+from sal.search import beam_search, best_of_n, dvts, dss, dis, bpds
 from sal.utils.data import get_dataset, save_dataset
 from sal.utils.parser import H4ArgumentParser
 from sal.utils.score import score
-
-from transformers import AutoTokenizer, AutoModel
+from sentence_transformers import SentenceTransformer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -42,14 +44,15 @@ APPROACHES = {
     "beam_search": beam_search,
     "dvts": dvts,
     "best_of_n": best_of_n,
-    "dss":dss
+    "dss":dss,
+    "dis":dis,
+    "bpds":bpds,
 }
 
 
 def main():
     parser = H4ArgumentParser(Config)
     config = parser.parse()
-
     approach_fn = APPROACHES[config.approach]
 
     num_gpus = torch.cuda.device_count()
@@ -61,17 +64,26 @@ def main():
         tensor_parallel_size=num_gpus,
     )
     prm = load_prm(config)
-
-    if(config.approach=="dss"):
-        em_tokenizer = AutoTokenizer.from_pretrained(config.em_path)
-        em_model = AutoModel.from_pretrained(config.em_path)
+    em_model = SentenceTransformer(config.em_path,device = torch.device("cuda:0"))
 
     dataset = get_dataset(config)
+    df = pd.DataFrame(dataset)
+    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42))
+    dataset = Dataset.from_pandas(df)
+    print("********************* Length = ",len(df),"*********************")
+
+    os.makedirs(config.log_dir, exist_ok=True)
+    
+    if config.push_to_hub==False:
+        os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
+    print("********************* Log Dir = ",config.log_dir,"*********************")
+    print("********************* Agg strategy = ",config.agg_strategy,"*********************")
+    
     dataset = dataset.map(
         approach_fn,
         batched=True,
         batch_size=config.search_batch_size,
-        fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model,"em_tokenizer":em_tokenizer},
+        fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model},
         desc="Running search",
         load_from_cache_file=False,
     )

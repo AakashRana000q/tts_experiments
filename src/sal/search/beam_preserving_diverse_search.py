@@ -16,6 +16,7 @@
 
 import logging
 from collections import defaultdict
+import random
 
 import numpy as np
 from tqdm import tqdm
@@ -26,13 +27,13 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
-from sal.utils.sem_clusters import get_semantic_indices
+from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,num_selects_bpds
 
 
 logger = logging.getLogger()
 
 
-def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
+def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -98,22 +99,37 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
         )
         lookahead = 0 if i == config.num_iterations - 1 else config.lookahead
         gen_results = generate_k_steps(
-            templated_convs, lookahead, llm, sampling_params, config.beam_width
+            templated_convs, lookahead, llm, sampling_params, config.beam_width*2
         )
 
-        prompts, completions = [], []
+        budget = []
         for beam, gen_result in zip(gen_beams, gen_results, strict=True):
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
             beam.lookahead_texts = gen_result.lookahead_texts
-            if len(beam.next_texts) != config.beam_width:
+            if len(beam.next_texts) != (config.beam_width*2):
                 beam.pruned = True
                 # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
                 logger.warning(
                     f"beam {beam.index} has {len(beam.next_texts)} completions"
                 )
+            budget.append(get_diversity_budget(config,beam,em_model))
+
+        prompts, completions = [], []
+        targ = len(gen_beams)*4
+        num_selects = num_selects_bpds(targ,budget)
+
+        for beam, num_bud in zip(gen_beams, num_selects):
+            num_buds = min(num_bud,len(beam.next_texts))
+            selected_indices = set(random.sample(range(len(beam.next_texts)), num_buds))
+
+            beam.next_texts = [el for idx, el in enumerate(beam.next_texts) if idx in selected_indices]
+            beam.stop_reasons = [el for idx, el in enumerate(beam.stop_reasons) if idx in selected_indices]
+            beam.lookahead_texts = [el for idx, el in enumerate(beam.lookahead_texts) if idx in selected_indices]
+
             prompts.append(beam.prompt)
             completions.append([beam.current_text + t for t in beam.lookahead_texts])
+
 
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
 
@@ -138,7 +154,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 # stopped on EOS, prune
                 beam.pruned = True
         
-        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id,budget=budget)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
@@ -168,18 +184,19 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     return output
 
 
-def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
+def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM):
     sampling_params = SamplingParams(
-            temperature=config.temperature,
-            max_tokens=2048,
-            top_p=config.top_p,
-            n=1,
-        )
+        temperature=config.temperature,
+        max_tokens=2048,
+        top_p=config.top_p,
+        n=1,
+    )
     
     convs = [
         build_conv(b.prompt, b.current_text, config.system_prompt)
         for b in final_beams
     ]
+
     continue_final_message = True
     add_generation_prompt = False
 
@@ -252,12 +269,11 @@ def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
 
     return output
 
-
-def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
+def bpds(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     print("Length of problems: ", len(problems))
-    beam_results = _dvts(problems, config, llm, prm, em_model, examples["unique_id"][0])
-    beam_results = extend_dvts(problems, config, llm, prm)
+    beam_results = _bpds(problems, config, llm, prm, em_model, examples["unique_id"][0])
+    beam_results = extend_bpds(beam_results, config, llm, prm)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

@@ -8,8 +8,7 @@
 #     http://www.apache.org/licenses/LICENSE-2.0
 #
 # Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# distributed under the License is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
 import copy
@@ -22,6 +21,7 @@ from vllm import LLM, SamplingParams
 
 from sal.config import Config
 from sal.models.reward_models import PRM
+from sal.utils.sem_clusters import get_semantic_indices
 
 from .utils import Beam, build_conv, generate_k_steps, last
 
@@ -29,7 +29,7 @@ logger = logging.getLogger()
 from sal.utils.score import aggregate_scores
 
 
-def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[Beam]:
+def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -63,6 +63,7 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
     completed_beams: list[Beam] = []
 
     for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
+        old_i = i
         if i == 0:
             active_beams = [b for b in beams if not b.pruned]
         else:
@@ -152,6 +153,9 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
         if len(active_beams) == 0:
             break
 
+        if len(completed_beams) >= config.n:
+            break
+
         # Filter duplicate active beams
         if config.filter_duplicates:
             # Create a dictionary to filter duplicates and retain order
@@ -169,9 +173,17 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
             -(config.n // config.beam_width) :
         ]
 
+        selected_scores = []
+        selected_text = []
+
         for idx, beam in enumerate(active_beams):
             if idx not in top_indices:
                 beam.pruned = True
+            else:
+                selected_scores.append(agg_scores[idx])
+                selected_text.append(beam.current_text)
+        
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id)
 
     # Filter completed beams for those with top config.n scores
     if config.sort_completed:
@@ -197,9 +209,9 @@ def _beam_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM) -> list[B
     return completed_beams
 
 
-def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None, em_tokenizer=None):
+def beam_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _beam_search(problems, config, llm, prm)
+    beam_results = _beam_search(problems, config, llm, prm, em_model ,examples["unique_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

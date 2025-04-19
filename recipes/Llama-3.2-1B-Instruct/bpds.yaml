@@ -1,6 +1,6 @@
 # refer to src/sal/config.py for more options
 
-approach: dvts
+approach: bpds
 n: 4
 search_batch_size: 1
 num_samples: 10       # REMOVE THIS LINE TO RUN ON THE WHOLE DATASET

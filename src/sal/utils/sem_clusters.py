@@ -5,6 +5,53 @@ import torch
 from sklearn.metrics import silhouette_score
 import pandas as pd
 from sal.config import Config
+from scipy.cluster.hierarchy import linkage, fcluster
+import json
+import os
+
+
+def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iteration_number, problem_id,budget=None):
+    """
+    Log semantic clustering information to a JSON file, appending new entries.
+    If the file doesn't exist, it starts with an empty list.
+    """
+
+    print("+"*20,f"Logging  problem_id {problem_id} at iteration {iteration_number}","+"*20)
+    log_file = config.log_file
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                log_data = json.load(f)
+                if not isinstance(log_data, list):
+                    log_data = []  
+        except json.JSONDecodeError:
+            log_data = []  
+    else:
+        log_data = []
+
+    if budget is not None:
+        new_entry = {
+            "num_samples": num_samples,
+            "num_clusters": num_clusters,
+            "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+            "iteration_number": iteration_number,
+            "problem_id": problem_id,
+            "budget":budget,
+        }
+    else:
+        new_entry = {
+            "num_samples": num_samples,
+            "num_clusters": num_clusters,
+            "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+            "iteration_number": iteration_number,
+            "problem_id": problem_id
+        }
+    log_data.append(new_entry)
+
+    with open(log_file, 'w') as f:
+        json.dump(log_data, f, indent=4)
+
+    return log_file
 
 def clean_solutions(ls):
     cleaned_ls = []
@@ -16,63 +63,58 @@ def clean_solutions(ls):
         cleaned_ls.append(cleaned_solution)
     return cleaned_ls
 
-def generate_embedding(sentences,em_model,em_tokenizer,batch_size):
-    device = torch.device("cuda:0")
-    em_model.eval()
-    em_model.to(device)
-    lens = len(sentences)
-    all_embeds = []
+def get_embeddings(text,em_model):
+    tokens = em_model.tokenizer.encode(text, add_special_tokens=False)
+    embeds = []
+    if(len(tokens)>256):
+        for start in range(0, len(tokens), 128):
+            end = min(start + 256, len(tokens))
+            chunk_tokens = tokens[start:end]
+            chunk_text = em_model.tokenizer.decode(chunk_tokens)  # Convert back to text
+            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False)  # Get embedding
+            embeds.append(chunk_embedding)
+            if end == len(tokens):
+                break
+        return np.mean(np.array(embeds), axis=0)
+    return em_model.encode(text, convert_to_tensor=False)
 
-    for i in range(0, lens, batch_size):
-        batch = sentences[i:min(i+batch_size,lens)]
+def get_optimal_clusters(liss,em_model,em_batch_size):
+    if(len(liss)==1):
+        return 1,[0]
+    embeddings = []
+    for item in liss:
+        embeddings.append(get_embeddings(item,em_model))
+    embeddings = np.array(embeddings)
+    
+    Z = linkage(embeddings, method='average', metric='cosine')
+    clusters = fcluster(Z, 0.05, criterion='distance') - 1 
+    K = len(np.unique(clusters))
 
-        inputs = em_tokenizer(batch, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    return K,clusters.tolist()
 
-        input_ids = inputs["input_ids"].to(device)
-        attention_mask = inputs["attention_mask"].to(device)
 
-        with torch.no_grad():
-            outputs = em_model(input_ids=input_ids, attention_mask=attention_mask)
-
-        hidden_state = outputs.last_hidden_state[:, 0, :]
-        all_embeds.append(hidden_state.cpu().numpy())
-
-    return np.vstack(all_embeds)
-
-def optimal_clusters_silhouette(embeddings,config):
-    best_k = 1
-    best_score = -1
-    total_samples = embeddings.shape[0]
-    for k in [4,8,16,32,64,128,256,512]:  #add config
-        if k>=total_samples:
-            continue
-
-        k = min(k, total_samples-1)
-        kmeans = KMeans(n_clusters=k, random_state=config.seed, n_init=10)
-        labels = kmeans.fit_predict(embeddings)
-        score = silhouette_score(embeddings, labels)
-
-        if score > best_score:
-            best_k = k
-            best_score = score
-
-    return best_k
-
-def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_scores):
-    active_text = [b.current_text for b in active_beams]
+def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_dss = False, iteration_number=0, problem_id=0,budget=None):
+    if not is_non_dss:
+        active_text = [b.next_texts[0] for b in active_beams]
+    else:
+        active_text = active_beams
     agg_scores = np.array(agg_scores).flatten()
     cleaned_ls = clean_solutions(active_text)
 
-    embeddings_array = generate_embedding(cleaned_ls,em_model,em_tokenizer,config.em_batch_size)
-
-    num_clusters = optimal_clusters_silhouette(embeddings_array,config)
-
-    kmeans = KMeans(n_clusters=num_clusters, random_state=config.seed)
-    kmeans.fit(embeddings_array)
-    labels = kmeans.labels_
-
+    num_clusters,labels = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
     num_select = (config.n // config.beam_width)
-    num_clusters = len(set(labels))
+
+    if is_non_dss:
+        log_semantic_clusters(
+            config,
+            num_samples=len(active_text),
+            num_clusters=num_clusters,
+            agg_scores=agg_scores,
+            iteration_number=iteration_number,
+            problem_id=problem_id,
+            budget=budget
+        )
+        return num_clusters
 
     df = pd.DataFrame({"index": range(len(active_text)), "score": agg_scores, "group": labels})
     df = df.sort_values(by="score", ascending=False)
@@ -87,9 +129,81 @@ def get_semantic_indices(config:Config,em_model,em_tokenizer,active_beams,agg_sc
     ret_ind = final_selection["index"].tolist()
     return ret_ind
 
+def get_diversity_budget(config:Config,beam,em_model):
+    active_text = list(beam.next_texts)
+    cleaned_ls = clean_solutions(active_text)
+    num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
+    ratio_uniq = (num_clusters/len(cleaned_ls))
 
+    if(ratio_uniq<0.13):   
+        return 1
+    elif(ratio_uniq<0.26):
+        return 2
+    elif(ratio_uniq<0.52):
+        return 3
+    elif(ratio_uniq<0.76):
+        return 4
+    return 5
 
+def get_num_selects(target,budget):
+    samples = []
+    for cat in budget:
+        if cat == 1: samples.append(1)
+        elif cat == 2: samples.append(2)
+        elif cat == 3: samples.append(4)
+        elif cat == 4: samples.append(6)
+        elif cat == 5: samples.append(8)
 
+    total = sum(samples)
+    rem = [1,2,3,4]
+            
+    if total > target:
+        surplus = total - target
+        for cat in [2,3,4,5,2,3,4,5]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                remove = min(surplus, rem[cat-2])
+                samples[i] -= remove
+                surplus -= remove
+                if surplus == 0: break
+            if surplus == 0: break
 
+        assert sum(samples) == target, f"Invalid total: {sum(samples)}"
 
+    return samples
 
+def num_selects_bpds(target,budget):
+    samples = []
+    for cat in budget:
+        if cat == 1: samples.append(1)
+        elif cat == 2: samples.append(2)
+        elif cat == 3: samples.append(4)
+        elif cat == 4: samples.append(6)
+        elif cat == 5: samples.append(8)
+
+    total = sum(samples)
+    rem = [1,2,3,4]
+
+    if total < target:
+        deficit = target - total
+        for cat in [4, 3, 2, 1]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                available = 8 - samples[i]
+                add = min(deficit, available)
+                samples[i] += add
+                deficit -= add
+                if deficit == 0: break
+            if deficit == 0: break
+            
+    elif total > target:
+        surplus = total - target
+        for cat in [2,3,4,5,2,3,4,5]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                remove = min(surplus, rem[cat-2])
+                samples[i] -= remove
+                surplus -= remove
+                if surplus == 0: break
+            if surplus == 0: break
+
+    assert sum(samples) == target, f"Invalid total: {sum(samples)}"
+
+    return samples

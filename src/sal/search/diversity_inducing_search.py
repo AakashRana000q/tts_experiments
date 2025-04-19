@@ -12,96 +12,92 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import copy
+
+
 import logging
 from collections import defaultdict
+import random
 
 import numpy as np
 from tqdm import tqdm
 from vllm import LLM, SamplingParams
+import copy
 
 from sal.config import Config
 from sal.models.reward_models import PRM
+from sal.utils.score import aggregate_scores
 
-from .utils import Beam, build_conv, generate_k_steps, last
+from .utils import Beam, build_conv, generate_k_steps
+from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,get_num_selects
+
 
 logger = logging.getLogger()
-from sal.utils.score import aggregate_scores
-from sal.utils.sem_clusters import get_semantic_indices
 
+def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
 
-def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
-        max_tokens=config.max_tokens,
+        max_tokens=2048,
         top_p=config.top_p,
-        stop=["\n\n"],
+        stop=[
+            "\n\n"
+        ],  # we consider that a step in the problem is indicated by a double newline
         include_stop_str_in_output=True,
         n=1,
     )
 
-    beams: list[Beam] = []
+    curr_beams: list[Beam] = []
     for prompt in batch_of_prompts:
-        for i in range(config.n):
-            beams.append(
+        for i in range(config.n_beams):
+            curr_beams.append(
                 Beam(
                     prompt=prompt,
                     index=i,
                     current_text="",
                     next_texts=None,
                     lookahead_texts=None,
-                    pruned=False,
-                    completed=False,  # New flag to track completion
-                    stop_reasons=None,
-                    history=[],
-                    best_scores=[],
+                    best_scores=[0.0],
                     all_scores=[],
                     previous_text=None,
-                    completion_tokens=0,
+                    pruned=False,
+                    stop_reasons=None,
+                    history=[],
                 )
             )
-
     completed_beams: list[Beam] = []
 
-    for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
+    for i in tqdm(range(config.num_iterations), desc="DIS search iterations"):
         old_i = i
-        if i == 0:
-            active_beams = [b for b in beams if not b.pruned]
-        else:
-            active_beams = [b for b in active_beams if not b.pruned]
 
-        # Duplicate active beams to ensure that we have config.n beams per iteration
-        if len(active_beams) != config.n:
-            repeats = (config.n // len(active_beams)) + 1
-            logger.debug(
-                f"Extending active_beams with {repeats} repetitions to reach size {config.n}"
-            )
+        if(len(curr_beams)!=config.n_beams):
+            repeats = (config.n_beams // len(curr_beams)) + 1
+
             extended_active_beams = [
-                copy.deepcopy(b) for b in (active_beams * repeats)[: config.n]
+                copy.deepcopy(b) for b in (curr_beams * repeats)[: config.n_beams]
             ]
-            active_beams = extended_active_beams
-            if len(active_beams) != config.n:
+            curr_beams = extended_active_beams
+            if len(curr_beams) != config.n_beams:
                 raise ValueError(
-                    f"Expected {config.n} active beams, but got {len(active_beams)}"
+                    f"Expected {config.n_beams} active beams, but got {len(curr_beams)}"
                 )
-
         if i == config.num_iterations - 1:
-            # Last iteration, generate to EOS
+            # last iteration, generate to EOS
             sampling_params = SamplingParams(
                 temperature=config.temperature,
-                max_tokens=config.max_tokens,
+                max_tokens=2048,
                 top_p=config.top_p,
                 n=1,
             )
-
         convs = [
             build_conv(b.prompt, b.current_text, config.system_prompt)
-            for b in active_beams
+            for b in curr_beams
         ]
+
         continue_final_message = i > 0
         add_generation_prompt = i == 0
 
         tokenizer = llm.get_tokenizer()
+        # TODO: set the augmented template from a file
         if config.custom_chat_template is not None:
             tokenizer.chat_template = config.custom_chat_template
         templated_convs = tokenizer.apply_chat_template(
@@ -110,54 +106,79 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, p
             continue_final_message=continue_final_message,
             tokenize=False,
         )
+
         lookahead = 0 if i == config.num_iterations - 1 else config.lookahead
         gen_results = generate_k_steps(
-            templated_convs, lookahead, llm, sampling_params, 1
+            templated_convs, lookahead, llm, sampling_params, config.beam_width*2
         )
-
-        prompts, completions = [], []
-        for beam, gen_result in zip(active_beams, gen_results, strict=True):
+        budget = []
+        for beam, gen_result in zip(curr_beams, gen_results, strict=True):
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
             beam.lookahead_texts = gen_result.lookahead_texts
-            beam.completion_tokens += gen_result.completion_tokens
-            beam.current_text += beam.next_texts[0]
-            beam.history.append(beam.next_texts[0])
+            if len(beam.next_texts) != (config.beam_width*2):
+                beam.pruned = True
+                # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
+                logger.warning(
+                    f"beam {beam.index} has {len(beam.next_texts)} completions"
+                )
+            budget.append(get_diversity_budget(config,beam,em_model))
+        
+        # scaling_factor = (config.n)/sum(budget) 
+        # selected_till_now = 0
 
-            if (
-                beam.stop_reasons[0] == "EOS"
-                or beam.stop_reasons[0] == "length"
-                or beam.next_texts[0] == ""
-            ):
-                beam.completed = True
-                completed_beams.append(beam)
-            prompts.append(beam.prompt)
-            completions.append([beam.current_text])
+        prompts, completions = [], []
+        num_selects = get_num_selects(config.n,budget)
+        active_beams: list[Beam] = []
+
+        for ind,beam in enumerate(curr_beams):
+            indices = random.sample(range(config.beam_width*2),num_selects[ind])
+            for iter in indices:
+                new_beam = Beam(
+                        prompt=beam.prompt,
+                        index=beam.index,
+                        current_text=beam.current_text+beam.next_texts[iter],
+                        next_texts=[beam.next_texts[iter]],
+                        lookahead_texts=[beam.next_texts[iter]],
+                        stop_reasons=[beam.stop_reasons[iter]],
+                        best_scores=[],
+                        all_scores=[],
+                        previous_text=None,
+                        pruned=False,
+                        history=[],
+                    )
+                if (
+                    new_beam.stop_reasons[0] == "EOS"
+                    or new_beam.stop_reasons[0] == "length"
+                    or new_beam.next_texts[0] == ""
+                ):
+                    new_beam.completed = True
+                    completed_beams.append(new_beam)
+
+                active_beams.append(new_beam)
+                prompts.append(new_beam.prompt)
+                completions.append([new_beam.current_text])
+        del curr_beams
 
         scores = prm.score(prompts, completions)
-
         agg_scores = [
             [aggregate_scores(s, config.agg_strategy) for s in score]
             for score in scores
         ]
-
         for beam, score in zip(active_beams, scores, strict=True):
             beam.all_scores = score[0]
-
-        # Now filter active_beams and agg_scores for beams that are completed
+        
         agg_scores = [
             agg_scores[i] for i, b in enumerate(active_beams) if not b.completed
         ]
         active_beams = [b for b in active_beams if not b.completed]
 
-        # Early stopping if all beams are completed
         if len(active_beams) == 0:
             break
 
         if len(completed_beams) >= config.n:
             break
 
-        # Filter duplicate active beams
         if config.filter_duplicates:
             # Create a dictionary to filter duplicates and retain order
             unique_beam_dict = {}
@@ -169,22 +190,20 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, p
             active_beams = [active_beams[i] for i in unique_beam_dict.values()]
             agg_scores = [agg_scores[i] for i in unique_beam_dict.values()]
 
-        # Get indices for top completions equally sampled from all buckets
-        top_indices = get_semantic_indices(config,em_model,active_beams,agg_scores,is_non_dss=False,iteration_number=old_i,problem_id=problem_id)
-
+        top_indices = np.argsort(np.array(agg_scores).flatten())[    # make sure it does not change agg_scores - nhi karta
+            -(config.n // config.beam_width) :
+        ]
         selected_scores = []
         selected_text = []
+        curr_beams: list[Beam] = []
         for idx, beam in enumerate(active_beams):
-            if idx not in top_indices:
-                beam.pruned = True
-            else:
+            if idx in top_indices:
+                curr_beams.append(beam)
                 selected_scores.append(agg_scores[idx])
-                selected_text.append(beam.current_text + beam.next_texts[0])
+                selected_text.append(beam.current_text)
         
-        get_semantic_indices(config,em_model,selected_text,selected_scores,is_non_dss=True,iteration_number=old_i,problem_id=problem_id)
+        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id,budget=budget)
 
-
-    # Filter completed beams for those with top config.n scores
     if config.sort_completed:
         completed_beams = sorted(
             completed_beams,
@@ -193,7 +212,7 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, p
         )[: config.n]
     else:
         completed_beams = completed_beams[: config.n]
-
+    
     if len(completed_beams) != config.n:
         # If we don't have enough completed_beams, duplicate until we reach config.n
         repeats = (config.n // len(completed_beams)) + 1
@@ -207,10 +226,9 @@ def _ds_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model, p
 
     return completed_beams
 
-
-def dss(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
+def dis(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _ds_search(problems, config, llm, prm, em_model, examples["unique_id"][0])
+    beam_results = _dis(problems, config, llm, prm, em_model ,examples["unique_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
