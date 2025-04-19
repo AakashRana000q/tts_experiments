@@ -1,0 +1,5 @@
+# refer to src/sal/config.py for more options
+
+approach: data_pb
+search_batch_size: 1
+seed: 0

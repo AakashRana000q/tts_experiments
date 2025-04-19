@@ -60,6 +60,9 @@ class Beam:
     stop_reasons: list[str | None] | None
     best_scores: list[float]  # the PRM scores
     all_scores: list[list[float]]  # all PRM scores
+    children: list[list[str]]
+    diversity: list[int]
+    org_steps: list[str]
     previous_text: str | None
     pruned: False
     history: list[str]
