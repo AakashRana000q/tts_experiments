@@ -170,3 +170,40 @@ def get_num_selects(target,budget):
         assert sum(samples) == target, f"Invalid total: {sum(samples)}"
 
     return samples
+
+def num_selects_bpds(target,budget):
+    samples = []
+    for cat in budget:
+        if cat == 1: samples.append(1)
+        elif cat == 2: samples.append(2)
+        elif cat == 3: samples.append(4)
+        elif cat == 4: samples.append(6)
+        elif cat == 5: samples.append(8)
+
+    total = sum(samples)
+    rem = [1,2,3,4]
+
+    if total < target:
+        deficit = target - total
+        for cat in [4, 3, 2, 1]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                available = 8 - samples[i]
+                add = min(deficit, available)
+                samples[i] += add
+                deficit -= add
+                if deficit == 0: break
+            if deficit == 0: break
+            
+    elif total > target:
+        surplus = total - target
+        for cat in [2,3,4,5,2,3,4,5]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                remove = min(surplus, rem[cat-2])
+                samples[i] -= remove
+                surplus -= remove
+                if surplus == 0: break
+            if surplus == 0: break
+
+    assert sum(samples) == target, f"Invalid total: {sum(samples)}"
+
+    return samples
