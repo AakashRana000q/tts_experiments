@@ -2,7 +2,6 @@
 
 # Fixed value for N
 N=256
-NUM_ITERATIONS=39
 
 # Array of valid functions
 valid_functions=("dvts")
@@ -13,6 +12,12 @@ for FUNCTION in "${valid_functions[@]}"; do
     echo "Running function=$FUNCTION with n=$N"
     echo "----------------------------------------"
     
+    if [ "$FUNCTION" == "beam_search" ]; then
+        NUM_ITERATIONS=40
+    else
+        NUM_ITERATIONS=39
+    fi
+
     python scripts/test_time_compute.py \
         "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
         --n=$N \

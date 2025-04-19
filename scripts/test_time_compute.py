@@ -79,14 +79,24 @@ def main():
     print("********************* Log Dir = ",config.log_dir,"*********************")
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
     
-    dataset = dataset.map(
-        approach_fn,
-        batched=True,
-        batch_size=config.search_batch_size,
-        fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model},
-        desc="Running search",
-        load_from_cache_file=False,
-    )
+    if(approach_fn=="bpds"):
+        dataset = dataset.map(
+            approach_fn,
+            batched=True,
+            batch_size=config.search_batch_size,
+            fn_kwargs={"config": config, "llm": llm, "prm": prm,"em_model":em_model},
+            desc="Running search",
+            load_from_cache_file=False,
+        )
+    else:
+        dataset = dataset.map(
+            approach_fn,
+            batched=True,
+            batch_size=config.search_batch_size,
+            fn_kwargs={"config": config, "llm": llm, "prm": prm},
+            desc="Running search",
+            load_from_cache_file=False,
+        )
 
     dataset = score(dataset, config)
 

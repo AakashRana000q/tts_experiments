@@ -27,13 +27,13 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
-from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,num_selects_bpds
+from sal.utils.sem_clusters import get_diversity_budget,num_selects_bpds
 
 
 logger = logging.getLogger()
 
 
-def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
+def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -65,7 +65,6 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             )
 
     for i in tqdm(range(config.num_iterations), desc="Beam search iterations"):
-        old_i = i
         # generation
         gen_beams = [b for b in beams if not b.pruned]
         if len(gen_beams) == 0:
@@ -134,8 +133,6 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
 
         all_scores = prm.score(prompts, completions)
-        selected_scores = []
-        selected_text = []
 
         for beam, scores in zip(gen_beams, all_scores, strict=True):
             agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
@@ -143,8 +140,6 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.all_scores = scores
             beam.previous_text = beam.current_text
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
-            selected_text.append(beam.current_text)
-            selected_scores.append([agg_scores[best_score_ind]])
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
             if (
@@ -154,7 +149,6 @@ def _bpds(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 # stopped on EOS, prune
                 beam.pruned = True
         
-        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id,budget=budget)
         # filter / prune
         for beam in gen_beams:
             if "boxed{" in beam.current_text:
@@ -272,7 +266,7 @@ def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM):
 def bpds(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     print("Length of problems: ", len(problems))
-    beam_results = _bpds(problems, config, llm, prm, em_model, examples["unique_id"][0])
+    beam_results = _bpds(problems, config, llm, prm, em_model)
     beam_results = extend_bpds(beam_results, config, llm, prm)
 
     # group together alike beams and store in the dataset
