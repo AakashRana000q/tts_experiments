@@ -61,13 +61,13 @@ class Beam:
     best_scores: list[float]  # the PRM scores
     all_scores: list[list[float]]  # all PRM scores
     previous_text: str | None
+    diversity_class: list[int] | None
+    parent_beams: list[str] | None
+    generated_beams: list[list[str]] | None
     pruned: False
     history: list[str]
     completed: bool = False
     completion_tokens: int = 0
-    diversity_class: list[int] | None
-    parent_beams: list[str] | None
-    generated_beams: list[list[str]] | None
 
 
 @dataclass
