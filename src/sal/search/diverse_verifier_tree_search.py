@@ -104,7 +104,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
         )
         lookahead = 0 if i == config.num_iterations - 1 else config.lookahead
         gen_results = generate_k_steps(
-            templated_convs, lookahead, llm, sampling_params, config.beam_width
+            templated_convs, lookahead, llm, sampling_params, config.beam_width*2
         )
 
         prompts, completions = [], []
@@ -112,7 +112,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
             beam.lookahead_texts = gen_result.lookahead_texts
-            if len(beam.next_texts) != config.beam_width:
+            if len(beam.next_texts) != config.beam_width*2:
                 beam.pruned = True
                 # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
                 logger.warning(
@@ -120,8 +120,8 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 )
             prompts.append(beam.prompt)
             completions.append([beam.current_text + t for t in beam.lookahead_texts])
-            gen_beams.generated_beams.append(beam.next_texts)
-            gen_beams.diversity_class.append(get_diversity_budget(config,beam,em_model))
+            beam.generated_beams.append(beam.next_texts)
+            beam.diversity_class.append(get_diversity_budget(config,beam,em_model))
 
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
         all_scores = prm.score(prompts, completions)
@@ -136,7 +136,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
             beam.history.append(beam.next_texts[best_score_ind])
             beam.best_scores = scores[best_score_ind]
-            gen_beams.parent_beams.append(beam.next_texts[best_score_ind])
+            beam.parent_beams.append(beam.next_texts[best_score_ind])
             if (
                 beam.next_texts[best_score_ind] == ""
                 or beam.stop_reasons[best_score_ind] == "EOS"
@@ -176,7 +176,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
     return output
 
 
-def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
+def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM, em_model=None):
     sampling_params = SamplingParams(
             temperature=config.temperature,
             max_tokens=2048,
@@ -219,6 +219,8 @@ def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
             )
         prompts.append(beam.prompt)
         completions.append([beam.current_text + t for t in beam.lookahead_texts])
+        beam.generated_beams.append(beam.next_texts)
+        beam.diversity_class.append(get_diversity_budget(config,beam,em_model))
 
     # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
 
@@ -237,6 +239,7 @@ def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
             ):
                 # stopped on EOS, prune
                 beam.pruned = True
+            beam.parent_beams.append(beam.next_texts[best_score_ind])
 
 
     output: list[Beam] = []
@@ -266,9 +269,9 @@ def extend_dvts(final_beams, config: Config, llm: LLM, prm: PRM):
 
 def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    print("Length of problems: ", len(problems))
+    print("*"*20,"Length of problems: ", len(problems),"*"*20)
     beam_results = _dvts(problems, config, llm, prm, em_model, examples["unique_id"][0])
-    beam_results = extend_dvts(problems, config, llm, prm)
+    beam_results = extend_dvts(beam_results, config, llm, prm, em_model)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

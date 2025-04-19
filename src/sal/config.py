@@ -64,7 +64,7 @@ class Config:
     agg_strategy: str = "last"  # Options: "last", "min", "prod"
 
     # DVTS / Beam Search options
-    beam_width: int = 8  # m in the paper
+    beam_width: int = 4  # m in the paper
     num_iterations: int = 40
     lookahead: int = 1
 

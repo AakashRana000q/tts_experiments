@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Fixed value for N
-N=256
+N=4
 NUM_ITERATIONS=39
 
 # Array of valid functions

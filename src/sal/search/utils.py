@@ -155,6 +155,9 @@ def generate_k_steps(
             previous_text=None,
             pruned=False,
             history=[],
+            diversity_class=[],
+            parent_beams=[],
+            generated_beams=[],
         )
         outputs.append(beam_result)
 
