@@ -61,7 +61,7 @@ class Beam:
     best_scores: list[float]  # the PRM scores
     all_scores: list[list[float]]  # all PRM scores
     children: list[list[str]] | None
-    diversity: list[int] | None
+    diversity: list[str] | None
     org_steps: list[str] | None
     previous_text: str | None
     pruned: False

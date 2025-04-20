@@ -71,12 +71,12 @@ def get_embeddings(text,em_model):
             end = min(start + 256, len(tokens))
             chunk_tokens = tokens[start:end]
             chunk_text = em_model.tokenizer.decode(chunk_tokens)  # Convert back to text
-            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False)  # Get embedding
+            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False,show_progress_bar=False)  # Get embedding
             embeds.append(chunk_embedding)
             if end == len(tokens):
                 break
         return np.mean(np.array(embeds), axis=0)
-    return em_model.encode(text, convert_to_tensor=False)
+    return em_model.encode(text, convert_to_tensor=False,show_progress_bar=False)
 
 def get_optimal_clusters(liss,em_model,em_batch_size):
     if(len(liss)==1):
@@ -135,13 +135,14 @@ def get_diversity_budget(config:Config,beam,em_model):
     num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
     ratio_uniq = (num_clusters/len(cleaned_ls))
 
-    if(ratio_uniq<0.13):   
-        return 1
-    elif(ratio_uniq<0.26):
-        return 2
-    elif(ratio_uniq<0.52):
-        return 3
-    return 4
+    return f"{num_clusters}_{len(cleaned_ls)}"
+    # if(ratio_uniq<0.13):   
+    #     return 1
+    # elif(ratio_uniq<0.26):
+    #     return 2
+    # elif(ratio_uniq<0.52):
+    #     return 3
+    # return 4
 
 
 def get_num_selects(target,budget):

@@ -41,11 +41,11 @@ def main():
     em_model = SentenceTransformer(config.em_path,device = torch.device("cuda:0"))
 
     df = pd.read_json("/workspace/tts_experiments/combined_pb.json")
-    df = df.groupby('fin_source', group_keys=False).apply(lambda x: x.sample(n=2, random_state=42))
+    # df = df.groupby('fin_source', group_keys=False).apply(lambda x: x.sample(n=2, random_state=42))
     df['num_steps'] = df['steps'].apply(lambda x:len(x))
     dataset = Dataset.from_pandas(df)
-    print("********************* Length = ",len(df),"*********************")
-    
+    print("\n\n","********************* Length = ",len(df),"*********************","\n\n")
+    print("\n\n","********************* Search Batch Size = ",config.search_batch_size,"*********************","\n\n")
     if config.push_to_hub==False:
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
 
