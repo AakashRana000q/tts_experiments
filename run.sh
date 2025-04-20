@@ -4,7 +4,7 @@
 N=256
 
 # Array of valid functions
-valid_functions=("beam_search")
+valid_functions=("dvts")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
@@ -22,6 +22,7 @@ for FUNCTION in "${valid_functions[@]}"; do
         "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
         --n=$N \
         --num_samples=500 \
+        --search_batch_size=4 \
         --num_iterations=$NUM_ITERATIONS \
         --push_to_hub=false \
         --lookahead=0 2>&1 | tee output_${FUNCTION}.log

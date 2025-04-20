@@ -75,6 +75,7 @@ def main():
     df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=50, random_state=42))
     dataset = Dataset.from_pandas(df)
     print("\n\n","********************* Length = ",len(df),"*********************","\n\n")
+    print("\n\n","********************* Search Batch Size = ",config.search_batch_size,"*********************","\n\n")
 
     os.makedirs(config.log_dir, exist_ok=True)
     
