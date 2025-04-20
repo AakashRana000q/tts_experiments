@@ -82,7 +82,7 @@ def main():
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
     
-    if(config.approach=="bpds"):
+    if(config.approach=="bpds" or config.approach=="dis"):
         dataset = dataset.map(
             approach_fn,
             batched=True,
