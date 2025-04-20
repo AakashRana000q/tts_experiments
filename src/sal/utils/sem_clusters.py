@@ -148,16 +148,16 @@ def get_num_selects(target,budget):
     samples = []
     for cat in budget:
         if cat == 1: samples.append(1)
-        elif cat == 2: samples.append(2)
-        elif cat == 3: samples.append(4)
-        elif cat == 4: samples.append(6)
+        elif cat == 2: samples.append(3)
+        elif cat == 3: samples.append(5)
+        elif cat == 4: samples.append(7)
 
     total = sum(samples)
     rem = [1,2,3]
             
     if total > target:
         surplus = total - target
-        for cat in [2,3,4,2,3,4]:
+        for cat in [2,3,4,2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove
