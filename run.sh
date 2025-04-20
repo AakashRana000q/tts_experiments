@@ -12,7 +12,7 @@ for FUNCTION in "${valid_functions[@]}"; do
     echo "Running function=$FUNCTION with n=$N"
     echo "----------------------------------------"
     
-    if [ "$FUNCTION" == "beam_search" ]; then
+    if [ "$FUNCTION" == "beam_search" ] || [ "$FUNCTION" == "dis" ]; then
         NUM_ITERATIONS=40
     else
         NUM_ITERATIONS=39
