@@ -28,7 +28,7 @@ from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
 from .utils import Beam, build_conv, generate_k_steps
-from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,get_num_selects
+from sal.utils.sem_clusters import get_diversity_budget,get_num_selects
 
 
 logger = logging.getLogger()
@@ -193,17 +193,11 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
         top_indices = np.argsort(np.array(agg_scores).flatten())[    # make sure it does not change agg_scores - nhi karta
             -(config.n // config.beam_width) :
         ]
-        selected_scores = []
-        selected_text = []
         curr_beams: list[Beam] = []
         for idx, beam in enumerate(active_beams):
             if idx in top_indices:
                 curr_beams.append(beam)
-                selected_scores.append(agg_scores[idx])
-                selected_text.append(beam.current_text)
         
-        get_semantic_indices(config, em_model , selected_text, selected_scores, is_non_dss=True, iteration_number=old_i, problem_id=problem_id,budget=budget)
-
     if config.sort_completed:
         completed_beams = sorted(
             completed_beams,
