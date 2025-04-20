@@ -64,6 +64,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                     history=[],
                     diversity_class=[],
                     parent_beams=[],
+                    generated_beams=[],
                 )
             )
     
@@ -120,6 +121,7 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
             prompts.append(beam.prompt)
             completions.append([beam.current_text + t for t in beam.lookahead_texts])
             beam.diversity_class.append(get_diversity_budget(config,beam,em_model))
+            beam.generated_beams.append(beam.next_texts)
 
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
         all_scores = prm.score(prompts, completions)
@@ -160,7 +162,7 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     for results in beam_results:
         grouped_results[results.prompt].append(results)
 
-    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": [], "parent_beams": [], "diversity_class": []}
+    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": [], "parent_beams": [], "diversity_class": [],'generated_beams': []}
 
     for p in problems:
         beams = grouped_results[p]
@@ -179,6 +181,7 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
         results["completion_tokens"].append(-1)
         results["parent_beams"].append(beams[0].parent_beams)
         results["diversity_class"].append(beams[0].diversity_class)
+        results["generated_beams"].append(beams[0].generated_beams)
 
     # TODO: construct and store the tree
 

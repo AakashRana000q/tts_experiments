@@ -63,6 +63,7 @@ class Beam:
     previous_text: str | None
     diversity_class: list[str] | None
     parent_beams: list[str] | None
+    generated_beams: list[list[str]] | None
     pruned: False
     history: list[str]
     completed: bool = False
