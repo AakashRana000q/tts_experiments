@@ -26,7 +26,7 @@ import random
 from sal.config import Config
 from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
-from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,num_selects_bpds
+from sal.utils.sem_clusters import get_diversity_budget
 
 from .utils import Beam, build_conv, generate_k_steps
 
@@ -34,7 +34,7 @@ from .utils import Beam, build_conv, generate_k_steps
 logger = logging.getLogger()
 
 
-def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
+def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None):
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=2048,
@@ -64,7 +64,6 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                     history=[],
                     diversity_class=[],
                     parent_beams=[],
-                    generated_beams=[],
                 )
             )
     
@@ -120,7 +119,6 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
                 )
             prompts.append(beam.prompt)
             completions.append([beam.current_text + t for t in beam.lookahead_texts])
-            beam.generated_beams.append(beam.next_texts)
             beam.diversity_class.append(get_diversity_budget(config,beam,em_model))
 
         # scoring and chose best generation per beam TODO: add option for selection across beams within the same prompt
@@ -155,14 +153,14 @@ def _dvts(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mo
 def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
     print("*"*20,"Length of problems: ", len(problems),"*"*20)
-    beam_results = _dvts(problems, config, llm, prm, em_model, examples["unique_id"][0])
+    beam_results = _dvts(problems, config, llm, prm, em_model)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
     for results in beam_results:
         grouped_results[results.prompt].append(results)
 
-    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": [], "parent_beams": [], "generated_beams": [], "diversity_class": []}
+    results = {"completions": [], "pred": [], "completion_tokens": [], "scores": [], "parent_beams": [], "diversity_class": []}
 
     for p in problems:
         beams = grouped_results[p]
@@ -179,9 +177,8 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
         )
         results["scores"].append([b.best_scores for b in beams])
         results["completion_tokens"].append(-1)
-        results["parent_beams"].append([b.parent_beams for b in beams])
-        results["generated_beams"].append([b.generated_beams for b in beams])
-        results["diversity_class"].append([b.diversity_class for b in beams])
+        results["parent_beams"].append(beams[0].parent_beams)
+        results["diversity_class"].append(beams[0].diversity_class)
 
     # TODO: construct and store the tree
 

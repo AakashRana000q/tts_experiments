@@ -66,9 +66,11 @@ def main():
     prm = load_prm(config)
     em_model = SentenceTransformer(config.em_path,device = torch.device("cuda:0"))
 
-    dataset = get_dataset(config)
-    df = pd.DataFrame(dataset)
-    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42)).head(1)
+    # dataset = get_dataset(config)
+    # df = pd.DataFrame(dataset)
+    # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42)).head(1)
+
+    df = pd.read_json("/workspace/tts_experiments/fin_train_math.json")
     dataset = Dataset.from_pandas(df)
     print("********************* Length = ",len(df),"*********************")
 
@@ -76,9 +78,8 @@ def main():
     
     if config.push_to_hub==False:
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
-    print("********************* Log Dir = ",config.log_dir,"*********************")
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
-    
+    print("\n\n","********************* Search Batch Size = ",config.search_batch_size,"*********************","\n\n")    
     dataset = dataset.map(
         approach_fn,
         batched=True,
