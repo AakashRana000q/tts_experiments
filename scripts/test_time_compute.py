@@ -16,6 +16,7 @@
 import logging
 import sys
 import os
+import time
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../src")))
 
@@ -51,6 +52,8 @@ APPROACHES = {
 
 
 def main():
+    start_time = time.time()
+
     parser = H4ArgumentParser(Config)
     config = parser.parse()
     approach_fn = APPROACHES[config.approach]
@@ -68,15 +71,15 @@ def main():
 
     dataset = get_dataset(config)
     df = pd.DataFrame(dataset)
-    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=10, random_state=42))
-    dataset = Dataset.from_pandas(df.iloc[0])
-    print("********************* Length = ",len(df),"*********************")
+    df = df[(df['level']==4) | (df['level']==5)]
+    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=50, random_state=42))
+    dataset = Dataset.from_pandas(df)
+    print("\n\n","********************* Length = ",len(df),"*********************","\n\n")
 
     os.makedirs(config.log_dir, exist_ok=True)
     
     if config.push_to_hub==False:
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
-    print("********************* Log Dir = ",config.log_dir,"*********************")
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
     
     if(approach_fn=="bpds"):
@@ -102,6 +105,8 @@ def main():
 
     save_dataset(dataset, config)
     logger.info("Done 🔥!")
+    end_time = time.time()
+    print(f"Search took {end_time - start_time:.2f} seconds to run.")
 
 
 if __name__ == "__main__":

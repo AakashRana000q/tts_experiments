@@ -4,7 +4,7 @@
 N=256
 
 # Array of valid functions
-valid_functions=("dvts")
+valid_functions=("beam_search")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
