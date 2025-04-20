@@ -246,7 +246,7 @@ def dvts(examples, config: Config, llm: LLM, prm: PRM):
     problems = examples["problem"]
     print("Length of problems: ", len(problems))
     beam_results = _dvts(problems, config, llm, prm)
-    beam_results = extend_dvts(problems, config, llm, prm)
+    beam_results = extend_dvts(beam_results, config, llm, prm)
 
     # group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

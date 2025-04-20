@@ -75,14 +75,14 @@ def main():
     df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=50, random_state=42))
     dataset = Dataset.from_pandas(df)
     print("\n\n","********************* Length = ",len(df),"*********************","\n\n")
-
+    print("\n\n","********************* Search Batch Size = ",config.search_batch_size,"*********************","\n\n")
     os.makedirs(config.log_dir, exist_ok=True)
     
     if config.push_to_hub==False:
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
     
-    if(approach_fn=="bpds"):
+    if(config.approach=="bpds"):
         dataset = dataset.map(
             approach_fn,
             batched=True,

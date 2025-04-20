@@ -4,7 +4,7 @@
 N=256
 
 # Array of valid functions
-valid_functions=("beam_search")
+valid_functions=("bpds")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
@@ -23,6 +23,7 @@ for FUNCTION in "${valid_functions[@]}"; do
         --n=$N \
         --num_samples=500 \
         --num_iterations=$NUM_ITERATIONS \
+        --search_batch_size=4 \
         --push_to_hub=false \
         --lookahead=0 2>&1 | tee output_${FUNCTION}.log
         

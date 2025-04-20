@@ -227,19 +227,19 @@ def extend_bpds(final_beams, config: Config, llm: LLM, prm: PRM):
 
     all_scores = prm.score(prompts, completions)
     for beam, scores in zip(final_beams, all_scores, strict=True):
-            agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
-            best_score_ind = np.argmax(agg_scores)
-            beam.all_scores = scores
-            beam.previous_text = beam.current_text
-            beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
-            beam.history.append(beam.next_texts[best_score_ind])
-            beam.best_scores = scores[best_score_ind]
-            if (
-                beam.next_texts[best_score_ind] == ""
-                or beam.stop_reasons[best_score_ind] == "EOS"
-            ):
-                # stopped on EOS, prune
-                beam.pruned = True
+        agg_scores = [aggregate_scores(s, config.agg_strategy) for s in scores]
+        best_score_ind = np.argmax(agg_scores)
+        beam.all_scores = scores
+        beam.previous_text = beam.current_text
+        beam.current_text = beam.current_text + beam.next_texts[best_score_ind]
+        beam.history.append(beam.next_texts[best_score_ind])
+        beam.best_scores = scores[best_score_ind]
+        if (
+            beam.next_texts[best_score_ind] == ""
+            or beam.stop_reasons[best_score_ind] == "EOS"
+        ):
+            # stopped on EOS, prune
+            beam.pruned = True
 
 
     output: list[Beam] = []
