@@ -82,9 +82,12 @@ class Config:
 
     def __post_init__(self):
         if self.approach == "dvts" or self.approach == "dis" or self.approach == "bpds":
-            if self.n % self.beam_width != 0:
+            
+            if self.n!=4 and self.n % self.beam_width != 0:
                 raise ValueError("n should be a multiple of beam_width")
             self.n_beams = self.n // self.beam_width
+            print("*"*20,f"Checking at {self.n}/{self.beam_width} N Beams  = {self.n_beams}","*"*20)
+            
 
         if self.approach == "beam_search":
             # TODO: implemented a batched version
