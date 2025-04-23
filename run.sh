@@ -2,7 +2,7 @@
 
 # Fixed value for N
 N=64
-NUM_ITERATIONS=10
+NUM_ITERATIONS=40
 
 # Array of valid functions
 valid_functions=("beam_search")

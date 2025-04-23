@@ -135,31 +135,28 @@ def get_diversity_budget(config:Config,beam,em_model):
     num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
     ratio_uniq = (num_clusters/len(cleaned_ls))
 
-    if(ratio_uniq<0.13):   
+    if(ratio_uniq<=0.125):   
         return 1
-    elif(ratio_uniq<0.26):
+    elif(ratio_uniq<=0.375):
         return 2
-    elif(ratio_uniq<0.52):
+    elif(ratio_uniq<=0.75):
         return 3
-    elif(ratio_uniq<0.76):
-        return 4
-    return 5
+    return 4
 
 def get_num_selects(target,budget):
     samples = []
     for cat in budget:
         if cat == 1: samples.append(1)
-        elif cat == 2: samples.append(2)
-        elif cat == 3: samples.append(4)
-        elif cat == 4: samples.append(6)
-        elif cat == 5: samples.append(8)
+        elif cat == 2: samples.append(3)
+        elif cat == 3: samples.append(5)
+        elif cat == 4: samples.append(7)
 
     total = sum(samples)
-    rem = [1,2,3,4]
+    rem = [1,2,3]
             
     if total > target:
         surplus = total - target
-        for cat in [2,3,4,5,2,3,4,5]:
+        for cat in [2,3,4,2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove
@@ -175,13 +172,12 @@ def num_selects_bpds(target,budget):
     samples = []
     for cat in budget:
         if cat == 1: samples.append(1)
-        elif cat == 2: samples.append(2)
-        elif cat == 3: samples.append(4)
-        elif cat == 4: samples.append(6)
-        elif cat == 5: samples.append(8)
+        elif cat == 2: samples.append(3)
+        elif cat == 3: samples.append(5)
+        elif cat == 4: samples.append(7)
 
     total = sum(samples)
-    rem = [1,2,3,4]
+    rem = [1,2,3]
 
     if total < target:
         deficit = target - total
@@ -196,7 +192,7 @@ def num_selects_bpds(target,budget):
             
     elif total > target:
         surplus = total - target
-        for cat in [2,3,4,5,2,3,4,5]:
+        for cat in [2,3,4,2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove

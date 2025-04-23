@@ -27,8 +27,14 @@ logger = logging.getLogger()
 
 
 def get_dataset(config: Config) -> Dataset:
-    dataset = load_dataset(config.dataset_name, split=config.dataset_split)
-
+    dataset = load_dataset(config.dataset_name, config.dataset_split)["train"]
+    columns_to_remove = ['image_1', 'image_2', 'image_3', 'image_4', 'image_5']
+    dataset = dataset.remove_columns(columns_to_remove)
+    dataset = dataset.rename_column("question", "problem")
+    dataset = dataset.rename_column("id", "unique_id")
+    dataset = dataset.rename_column("final_answer", "answer")
+    dataset = dataset.rename_column("answer_type", "subject")
+    # print("***************************** Loaded Dataset *****************************\n",dataset)
     if config.dataset_start is not None and config.dataset_end is not None:
         dataset = dataset.select(range(config.dataset_start, config.dataset_end))
     if config.num_samples is not None:

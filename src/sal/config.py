@@ -43,9 +43,10 @@ class Config:
     apply_voting: bool = True
 
     # Dataset Related Options
-    dataset_name: str = "HuggingFaceH4/MATH-500"
+    # dataset_name: str = "HuggingFaceH4/MATH-500"
+    dataset_name: str = "Hothan/OlympiadBench"
     dataset_config: str = None
-    dataset_split: str = "test"
+    dataset_split: str = "OE_TO_maths_en_COMP"
     dataset_start: int = None
     dataset_end: int = None
     num_samples: int = None
