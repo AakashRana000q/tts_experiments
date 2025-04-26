@@ -33,7 +33,7 @@ def get_dataset(config: Config) -> Dataset:
     dataset = dataset.rename_column("question", "problem")
     dataset = dataset.rename_column("id", "unique_id")
     dataset = dataset.rename_column("final_answer", "answer")
-    dataset = dataset.rename_column("answer_type", "subject")
+    dataset = dataset.rename_column("answer_type", "subject__")
     # print("***************************** Loaded Dataset *****************************\n",dataset)
     if config.dataset_start is not None and config.dataset_end is not None:
         dataset = dataset.select(range(config.dataset_start, config.dataset_end))

@@ -78,6 +78,8 @@ def main():
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Log Dir = ",config.log_dir,"*********************")
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
+    print("********************* PRM Path = ",config.prm_path,"*********************")
+    
     
     dataset = dataset.map(
         approach_fn,
