@@ -24,14 +24,14 @@ import os
 
 @dataclass
 class Config:
-    approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis","bpds"] = "bpds"
+    approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis","bpds","disb"] = "disb"
     # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
     model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
     gpu_memory_utilization: float = (
-        0.3
+        0.4
     )
-    prm_path: str = "/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B"
+    prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
     # /workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Skywork/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Output Related Options
@@ -83,7 +83,7 @@ class Config:
     log_dir = ""
 
     def __post_init__(self):
-        if self.approach == "dvts" or self.approach == "dis" or self.approach == "bpds":
+        if self.approach == "dvts" or self.approach == "dis" or self.approach == "bpds" or self.approach == "disb":
             
             if self.n!=4 and self.n % self.beam_width != 0:
                 raise ValueError("n should be a multiple of beam_width")

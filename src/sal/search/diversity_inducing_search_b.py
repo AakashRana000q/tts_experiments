@@ -33,7 +33,7 @@ from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,get
 
 logger = logging.getLogger()
 
-def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
+def _disb(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None):
 
     sampling_params = SamplingParams(
         temperature=config.temperature,
@@ -108,7 +108,7 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
         )
 
         lookahead = 0 if i == config.num_iterations - 1 else config.lookahead
-        if(i>0):
+        if(old_i>0):
             gen_results = generate_k_steps(
                 templated_convs, lookahead, llm, sampling_params, config.beam_width*2
             )
@@ -130,6 +130,17 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
             gen_results = generate_k_steps(
                 templated_convs, lookahead, llm, sampling_params, 1
             )
+            for beam, gen_result in zip(curr_beams, gen_results, strict=True):
+                beam.next_texts = gen_result.next_texts
+                beam.stop_reasons = gen_result.stop_reasons
+                beam.lookahead_texts = gen_result.lookahead_texts
+                if beam.next_texts is None:
+                    beam.next_texts = []
+                    # rarely ~1/1000 the model will generate few beams than expected. #TODO: investigate why
+                    logger.warning(
+                        f"beam {beam.index} has no completions"
+                    )
+            budget=None
             num_selects = [1]*config.n
 
         prompts, completions = [], []
@@ -140,18 +151,18 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
             indices = random.sample(range(len(beam.next_texts)),num_buds)
             for iter in indices:
                 new_beam = Beam(
-                        prompt=beam.prompt,
-                        index=beam.index,
-                        current_text=beam.current_text+beam.next_texts[iter],
-                        next_texts=[beam.next_texts[iter]],
-                        lookahead_texts=[beam.next_texts[iter]],
-                        stop_reasons=[beam.stop_reasons[iter]],
-                        best_scores=[],
-                        all_scores=[],
-                        previous_text=None,
-                        pruned=False,
-                        history=[],
-                    )
+                    prompt=beam.prompt,
+                    index=beam.index,
+                    current_text=beam.current_text+beam.next_texts[iter],
+                    next_texts=[beam.next_texts[iter]],
+                    lookahead_texts=[beam.next_texts[iter]],
+                    stop_reasons=[beam.stop_reasons[iter]],
+                    best_scores=[],
+                    all_scores=[],
+                    previous_text=None,
+                    pruned=False,
+                    history=[],
+                )
                 if (
                     new_beam.stop_reasons[0] == "EOS"
                     or new_beam.stop_reasons[0] == "length"
@@ -231,9 +242,9 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
 
     return completed_beams
 
-def dis(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
+def disb(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _dis(problems, config, llm, prm, em_model ,examples["unique_id"][0])
+    beam_results = _disb(problems, config, llm, prm, em_model ,examples["unique_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)
