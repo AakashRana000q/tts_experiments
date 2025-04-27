@@ -68,7 +68,7 @@ def main():
 
     dataset = get_dataset(config)
     df = pd.DataFrame(dataset)
-    df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=5, random_state=42))
+    # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=50, random_state=42))
     df = df[df['level']==1]
     dataset = Dataset.from_pandas(df)
     print("********************* Length = ",len(df),"*********************")
@@ -79,6 +79,7 @@ def main():
         os.makedirs(f"/workspace/tts_experiments/data/{config.model_path}", exist_ok=True)
     print("********************* Log Dir = ",config.log_dir,"*********************")
     print("********************* Agg strategy = ",config.agg_strategy,"*********************")
+    print("********************* PRM Path = ",config.prm_path,"*********************")
     
     dataset = dataset.map(
         approach_fn,

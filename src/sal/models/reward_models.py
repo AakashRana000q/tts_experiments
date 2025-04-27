@@ -283,7 +283,7 @@ class SkyworkO1(PRM):
         cls, prm_model_path, **model_kwargs
     ) -> tuple[PreTrainedModel, PreTrainedTokenizer]:
         tokenizer = AutoTokenizer.from_pretrained(
-            prm_model_path, trust_remote_code=True
+            prm_model_path
         )
         model = SkyworkPRMModel.from_pretrained(
             prm_model_path,
@@ -350,7 +350,7 @@ def load_prm(config: Config) -> PRM:
     if config.prm_path == "Skywork/Skywork-o1-Open-PRM-Qwen-2.5-1.5B":
         return SkyworkO1_1_5B(config)
 
-    if config.prm_path == "Skywork/Skywork-o1-Open-PRM-Qwen-2.5-7B":
+    if config.prm_path == "Skywork/Skywork-o1-Open-PRM-Qwen-2.5-7B" or config.prm_path=="/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B":
         return SkyworkO1_7B(config)
 
     raise NotImplementedError(f"PRM {config.prm_path} not implemented")

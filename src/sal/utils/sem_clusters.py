@@ -71,12 +71,12 @@ def get_embeddings(text,em_model):
             end = min(start + 256, len(tokens))
             chunk_tokens = tokens[start:end]
             chunk_text = em_model.tokenizer.decode(chunk_tokens)  # Convert back to text
-            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False)  # Get embedding
+            chunk_embedding = em_model.encode(chunk_text,convert_to_tensor=False,show_progress_bar=False)  # Get embedding
             embeds.append(chunk_embedding)
             if end == len(tokens):
                 break
         return np.mean(np.array(embeds), axis=0)
-    return em_model.encode(text, convert_to_tensor=False)
+    return em_model.encode(text, convert_to_tensor=False,show_progress_bar=False)
 
 def get_optimal_clusters(liss,em_model,em_batch_size):
     if(len(liss)==1):
@@ -137,29 +137,37 @@ def get_diversity_budget(config:Config,beam,em_model):
 
     if(ratio_uniq<0.13):   
         return 1
-    elif(ratio_uniq<0.26):
+    elif(ratio_uniq<0.38):
         return 2
-    elif(ratio_uniq<0.52):
-        return 3
     elif(ratio_uniq<0.76):
-        return 4
-    return 5
+        return 3
+    return 4
 
 def get_num_selects(target,budget):
     samples = []
     for cat in budget:
         if cat == 1: samples.append(1)
-        elif cat == 2: samples.append(2)
-        elif cat == 3: samples.append(4)
-        elif cat == 4: samples.append(6)
-        elif cat == 5: samples.append(8)
+        elif cat == 2: samples.append(3)
+        elif cat == 3: samples.append(5)
+        elif cat == 4: samples.append(7)
 
     total = sum(samples)
-    rem = [1,2,3,4]
-            
-    if total > target:
+    rem = [1,2,3]
+
+    if total < target:
+        deficit = target - total
+        for cat in [4, 3, 2, 1]:
+            for i in [idx for idx, c in enumerate(budget) if c == cat]:
+                available = 8 - samples[i]
+                add = min(deficit, available)
+                samples[i] += add
+                deficit -= add
+                if deficit == 0: break
+            if deficit == 0: break
+    
+    elif total > target:
         surplus = total - target
-        for cat in [2,3,4,5,2,3,4,5]:
+        for cat in [2,3,4,2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove
@@ -167,7 +175,7 @@ def get_num_selects(target,budget):
                 if surplus == 0: break
             if surplus == 0: break
 
-        assert sum(samples) == target, f"Invalid total: {sum(samples)}"
+    assert sum(samples) == target, f"Invalid total: {sum(samples)}"
 
     return samples
 
@@ -175,13 +183,12 @@ def num_selects_bpds(target,budget):
     samples = []
     for cat in budget:
         if cat == 1: samples.append(1)
-        elif cat == 2: samples.append(2)
-        elif cat == 3: samples.append(4)
-        elif cat == 4: samples.append(6)
-        elif cat == 5: samples.append(8)
+        elif cat == 2: samples.append(3)
+        elif cat == 3: samples.append(5)
+        elif cat == 4: samples.append(7)
 
     total = sum(samples)
-    rem = [1,2,3,4]
+    rem = [1,2,3]
 
     if total < target:
         deficit = target - total
@@ -196,7 +203,7 @@ def num_selects_bpds(target,budget):
             
     elif total > target:
         surplus = total - target
-        for cat in [2,3,4,5,2,3,4,5]:
+        for cat in [2,3,4,2,3,4,2,3,4]:
             for i in [idx for idx, c in enumerate(budget) if c == cat]:
                 remove = min(surplus, rem[cat-2])
                 samples[i] -= remove

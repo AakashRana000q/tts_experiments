@@ -29,9 +29,9 @@ class Config:
     model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
     gpu_memory_utilization: float = (
-        0.5
+        0.3
     )
-    prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
+    prm_path: str = "/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B"
     
     # Output Related Options
     output_dir: str = None
