@@ -25,13 +25,14 @@ import os
 @dataclass
 class Config:
     approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis","bpds"] = "bpds"
-    # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
-    model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
+    model_path: str = "Qwen/Qwen2.5-Math-1.5B-Instruct"
+    # model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
 
     gpu_memory_utilization: float = (
         0.3
     )
-    prm_path: str = "/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B"
+    # prm_path: str = "/workspace/Skywork-o1-Open-PRM-Qwen-2.5-7B"
+    prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
     
     # Output Related Options
     output_dir: str = None

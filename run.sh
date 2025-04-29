@@ -5,7 +5,7 @@ N=64
 NUM_ITERATIONS=40
 
 # Array of valid functions
-valid_functions=("dvts")
+valid_functions=("beam-search")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do
@@ -14,7 +14,7 @@ for FUNCTION in "${valid_functions[@]}"; do
     echo "----------------------------------------"
     
     python scripts/test_time_compute.py \
-        "recipes/Llama-3.2-1B-Instruct/${FUNCTION}.yaml" \
+        "recipes/Qwen2.5-1.5B-Instruct/${FUNCTION}.yaml" \
         --n=$N \
         --num_samples=500 \
         --num_iterations=$NUM_ITERATIONS \

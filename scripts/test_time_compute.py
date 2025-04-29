@@ -69,7 +69,7 @@ def main():
     dataset = get_dataset(config)
     df = pd.DataFrame(dataset)
     # df = df.groupby('level', group_keys=False).apply(lambda x: x.sample(n=50, random_state=42))
-    df = df[df['level']==1]
+    df = df[df['level']==1].head(2)
     dataset = Dataset.from_pandas(df)
     print("********************* Length = ",len(df),"*********************")
 
