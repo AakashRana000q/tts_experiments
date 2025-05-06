@@ -27,7 +27,7 @@ from sal.config import Config
 from sal.models.reward_models import PRM
 from sal.utils.score import aggregate_scores
 
-from .utils import Beam, build_conv, generate_k_steps
+from .utils import Beam, build_conv, generate_k_steps, generate_clustering
 from sal.utils.sem_clusters import get_semantic_indices,get_diversity_budget,get_num_selects
 
 
@@ -112,6 +112,24 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
             templated_convs, lookahead, llm, sampling_params, config.beam_width*2
         )
         budget = []
+
+        ## LLM Clustering
+        clustering_convs = [
+            build_conv(b.prompt, b.current_text, config.system_prompt_clustering)
+            for b in curr_beams
+        ]
+        templated_convs_clustering = tokenizer.apply_chat_template(
+            clustering_convs,
+            add_generation_prompt=add_generation_prompt,
+            continue_final_message=continue_final_message,
+            tokenize=False,
+        )
+
+        lookahead = 0 if i == config.num_iterations - 1 else config.lookahead
+        gen_results_clustering = generate_clustering(
+            templated_convs_clustering, llm, sampling_params
+        )
+
         for beam, gen_result in zip(curr_beams, gen_results, strict=True):
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
@@ -122,7 +140,9 @@ def _dis(batch_of_prompts: list[str], config: Config, llm: LLM, prm: PRM, em_mod
                 logger.warning(
                     f"beam {beam.index} has {len(beam.next_texts)} completions"
                 )
-            budget.append(get_diversity_budget(config,beam,em_model))
+            # budget.append(get_diversity_budget(config,beam,em_model))
+            ## LLM Clustering
+            budget.append(get_diversity_budget(config,gen_results_clustering[i],beam,em_model))
         
         # scaling_factor = (config.n)/sum(budget) 
         # selected_till_now = 0

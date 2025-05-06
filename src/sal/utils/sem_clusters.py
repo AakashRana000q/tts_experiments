@@ -8,6 +8,8 @@ from sal.config import Config
 from scipy.cluster.hierarchy import linkage, fcluster
 import json
 import os
+import re
+
 
 
 def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iteration_number, problem_id,budget=None):
@@ -129,10 +131,25 @@ def get_semantic_indices(config:Config,em_model,active_beams,agg_scores,is_non_d
     ret_ind = final_selection["index"].tolist()
     return ret_ind
 
-def get_diversity_budget(config:Config,beam,em_model):
+def get_optimal_clusters_llm(text):
+    match = re.search(r"\{(\d+)\}", text)
+    if match:
+        return int(match.group(1))
+    else:
+        raise ValueError("Cluster number not found in the expected format.")
+
+def get_diversity_budget(config:Config,generated_clustering_output,beam,em_model,use_llm = False):
     active_text = list(beam.next_texts)
     cleaned_ls = clean_solutions(active_text)
-    num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
+    if use_llm:
+        try:
+            num_clusters = get_optimal_clusters_llm(generated_clustering_output)
+        except:
+            print('Error in getting clusters')
+            num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
+    else:
+        num_clusters,_ = get_optimal_clusters(cleaned_ls,em_model,config.em_batch_size)
+
     ratio_uniq = (num_clusters/len(cleaned_ls))
 
     if(ratio_uniq<0.13):   

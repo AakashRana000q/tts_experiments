@@ -156,3 +156,38 @@ def generate_k_steps(
         outputs.append(beam_result)
 
     return outputs
+
+
+
+def generate_clustering(
+    templated_convs,
+    llm: LLM,
+    sampling_params: SamplingParams,
+) -> list[Beam]:
+    gen_results = []
+    for i, text in enumerate(templated_convs):
+        gen_result = GenResult(
+            index=i,
+            initial_prompt=text,
+            first_step_text="",
+            lookahead_text="",
+            stop_reason=None,
+            first_step_stop_reason=None,
+        )
+        gen_results.append(gen_result)
+
+    gen_sampling_params = copy.deepcopy(sampling_params)
+
+    gen_sampling_params.temperature = 0.0 
+    current_gen = gen_results
+    gen_prompts = [
+        gen_result.initial_prompt
+        for gen_result in current_gen
+    ]
+    outputs = []
+    llm_outputs = llm.generate(gen_prompts, gen_sampling_params, use_tqdm=False)
+    for output in  llm_outputs:
+        gen_text = output.outputs[0].text
+        outputs.append(gen_text)
+
+    return outputs
