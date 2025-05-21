@@ -16,7 +16,7 @@ def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iterati
     If the file doesn't exist, it starts with an empty list.
     """
 
-    print("+"*20,f"Logging  problem_id {problem_id} at iteration {iteration_number}","+"*20)
+    # print("+"*20,f"Logging  problem_id {problem_id} at iteration {iteration_number}","+"*20)
     log_file = config.log_file
     if os.path.exists(log_file):
         try:

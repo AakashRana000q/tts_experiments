@@ -26,12 +26,12 @@ import os
 class Config:
     approach: Literal["best_of_n", "beam_search", "dvts", "dss", "dis","bpds","disb"] = "disb"
     # model_path: str = "Qwen/Qwen2.5-1.5B-Instruct"
-    model_path: str = "meta-llama/Llama-3.2-1B-Instruct"
+    model_path: str = "Qwen/Qwen2.5-Math-1.5B-Instruct"
 
     gpu_memory_utilization: float = (
-        0.4
+        0.5
     )
-    prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
+    prm_path: str = "/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B"
     # /workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Skywork/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Output Related Options
@@ -48,6 +48,7 @@ class Config:
     dataset_name: str = "Hothan/OlympiadBench"
     dataset_config: str = None
     dataset_split: str = "OE_TO_maths_en_COMP"
+    # dataset_split: str = "test"
     dataset_start: int = None
     dataset_end: int = None
     num_samples: int = None
