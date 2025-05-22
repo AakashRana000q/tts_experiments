@@ -29,7 +29,7 @@ from sal.models.reward_models import load_prm
 from datasets import Dataset
 import pandas as pd
 import os
-from sal.search import beam_search, best_of_n, dvts, dss, dis, bpds, disb, rebase
+from sal.search import beam_search, best_of_n, dvts, dss, dis, bpds, disb, rebase, reg_search
 from sal.utils.data import get_dataset, save_dataset
 from sal.utils.parser import H4ArgumentParser
 from sal.utils.score import score
@@ -50,6 +50,7 @@ APPROACHES = {
     "bpds":bpds,
     "disb":disb,
     "rebase":rebase,
+    "reg_search":reg_search
 }
 
 
@@ -80,6 +81,7 @@ def main():
     dataset = get_dataset(config)
     df = pd.DataFrame(dataset)
     df = df.sample(n=50, random_state=42)
+    # df = df.iloc[8:12].reset_index(drop=True)
     dataset = Dataset.from_pandas(df)
     print("********************* Length = ",len(df),"*********************")
     os.makedirs(config.log_dir, exist_ok=True)

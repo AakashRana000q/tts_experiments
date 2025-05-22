@@ -5,7 +5,7 @@ N=64
 NUM_ITERATIONS=40
 
 # Array of valid functions
-valid_functions=("rebase")
+valid_functions=("reg_search")
 
 # Run for each function
 for FUNCTION in "${valid_functions[@]}"; do

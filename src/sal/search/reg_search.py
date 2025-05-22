@@ -15,7 +15,7 @@ from .utils import Beam, build_conv, generate_k_steps, last
 logger = logging.getLogger()
 from sal.utils.score import aggregate_scores
 
-def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None) -> list[Beam]:
+def _reg_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = None, problem_id = None) -> list[Beam]:
     sampling_params = SamplingParams(
         temperature=config.temperature,
         max_tokens=config.max_tokens,
@@ -23,6 +23,7 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
         stop=["\n\n"],
         include_stop_str_in_output=True,
         n=1,
+        logprobs=1
     )
 
     beams: list[Beam] = []
@@ -39,9 +40,9 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
                     completed=False,  # New flag to track completion
                     stop_reasons=None,
                     history=[],
+                    prob=[],
                     best_scores=[],
                     all_scores=[],
-                    prob=[],
                     previous_text=None,
                     completion_tokens=0,
                 )
@@ -49,7 +50,7 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
 
     completed_beams: list[Beam] = []
     gen_budget = []
-    for i in tqdm(range(config.num_iterations), desc="Rebase iterations"):
+    for i in tqdm(range(config.num_iterations), desc="Reg Search iterations"):
         if i == 0:
             active_beams = [b for b in beams if not b.pruned]
         else:
@@ -63,6 +64,7 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
                 max_tokens=config.max_tokens,
                 top_p=config.top_p,
                 n=1,
+                logprobs=1
             )
         convs = [
             build_conv(b.prompt, b.current_text, config.system_prompt)
@@ -85,7 +87,7 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
             templated_convs, lookahead, llm, sampling_params, 1
         )
 
-        prompts, completions = [], []
+        prompts, completions, probs = [], [], []
         for beam, gen_result in zip(active_beams, gen_results, strict=True):
             beam.next_texts = gen_result.next_texts
             beam.stop_reasons = gen_result.stop_reasons
@@ -103,6 +105,7 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
                 completed_beams.append(beam)
             prompts.append(beam.prompt)
             completions.append([beam.current_text])
+            probs.append(gen_result.prob[0])
 
         scores = prm.score(prompts, completions)
 
@@ -117,7 +120,11 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
         agg_scores = [
             agg_scores[i] for i, b in enumerate(active_beams) if not b.completed
         ]
+        probs = [
+            probs[i] for i, b in enumerate(active_beams) if not b.completed
+        ]
         active_beams = [b for b in active_beams if not b.completed]
+
 
         # Early stopping if all beams are completed
         if len(active_beams) == 0:
@@ -138,12 +145,17 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
                     )
             active_beams = [active_beams[i] for i in unique_beam_dict.values()]
             agg_scores = [agg_scores[i] for i in unique_beam_dict.values()]
+            probs = [probs[i] for i in unique_beam_dict.values()]
         
+        beta = 5
+        lambda_ = 0.2
         flat_scores = np.array(agg_scores).flatten()
-        softmax_scores = np.exp(flat_scores) / np.sum(np.exp(flat_scores))
+        probs_arr = np.array(probs).flatten()
+        fin_scores = flat_scores*probs_arr
+
+        softmax_scores = np.exp(fin_scores) / np.sum(np.exp(fin_scores))
         gen_budget = np.round(softmax_scores * (bud_left)).astype(int)
         gen_budget = gen_budget.tolist()
-
         if(sum(gen_budget)==0):
             base = bud_left // len(active_beams)
             remainder = bud_left % len(active_beams)
@@ -151,9 +163,9 @@ def _rebase(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model = Non
     
     return completed_beams
 
-def rebase(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
+def reg_search(examples, config: Config, llm: LLM, prm: PRM, em_model=None):
     problems = examples["problem"]
-    beam_results = _rebase(problems, config, llm, prm, em_model ,examples["unique_id"][0])
+    beam_results = _reg_search(problems, config, llm, prm, em_model ,examples["unique_id"][0])
 
     # Group together alike beams and store in the dataset
     grouped_results = defaultdict(list)

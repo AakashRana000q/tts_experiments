@@ -1,0 +1,8 @@
+model_path: Qwen/Qwen2.5-Math-1.5B-Instruct
+custom_chat_template: null
+filter_duplicates: true
+approach: reg_search
+n: 50
+search_batch_size: 1  # DO NOT CHANGE!
+num_samples: 500       # REMOVE THIS LINE TO RUN ON THE WHOLE DATASET
+seed: 0

@@ -6,3 +6,4 @@ from .diversity_inducing_search import dis
 from .beam_preserving_diverse_search import bpds
 from .diversity_inducing_search_b import disb
 from .rebase import rebase
+from .reg_search import reg_search

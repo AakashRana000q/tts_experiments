@@ -15,6 +15,7 @@
 import copy
 import logging
 from dataclasses import dataclass
+import math
 
 import numpy as np
 from vllm import LLM, SamplingParams
@@ -59,6 +60,7 @@ class Beam:
     lookahead_texts: list[str] | None
     stop_reasons: list[str | None] | None
     best_scores: list[float]  # the PRM scores
+    prob: list[float] | None
     all_scores: list[list[float]]  # all PRM scores
     previous_text: str | None
     pruned: False
@@ -74,6 +76,7 @@ class GenResult:
     first_step_text: str
     first_step_stop_reason: str
     lookahead_text: str
+    prob: float | None
     stop_reason: str | None
 
 
@@ -94,11 +97,11 @@ def generate_k_steps(
                 lookahead_text="",
                 stop_reason=None,
                 first_step_stop_reason=None,
+                prob = None
             )
             gen_results.append(gen_result)
 
     gen_sampling_params = copy.deepcopy(sampling_params)
-
     for i in range(lookahead_steps + 1):
         if i == 1:
             gen_sampling_params.temperature = 0.0  # greedy for the rest of the steps
@@ -115,6 +118,18 @@ def generate_k_steps(
         llm_outputs = llm.generate(gen_prompts, gen_sampling_params, use_tqdm=False)
         for gen_result, output in zip(current_gen, llm_outputs):
             gen_text = output.outputs[0].text
+            total_logprob = output.outputs[0].cumulative_logprob
+            
+            # print(gen_sampling_params)
+            # print(total_logprob,"\n")
+            # print(output.outputs[0])
+
+            
+            if(total_logprob==0):
+                total_prob = 1
+            else:
+                total_prob = min(1,-1/total_logprob)
+
             if i == 0:
                 gen_result.first_step_text = gen_text
                 gen_result.first_step_stop_reason = output.outputs[0].stop_reason
@@ -123,6 +138,8 @@ def generate_k_steps(
 
             gen_result.lookahead_text = gen_result.lookahead_text + gen_text
             gen_result.stop_reason = output.outputs[0].stop_reason
+            gen_result.prob = total_prob
+
             if gen_result.stop_reason is None:
                 gen_result.stop_reason = "EOS"
 
@@ -133,11 +150,13 @@ def generate_k_steps(
         next_texts = []
         stop_reasons = []
         lookahead_texts = []
+        probs = []
         for j in range(beam_width):
             gen_result = gen_results[counter]
             next_texts.append(gen_result.first_step_text)
             lookahead_texts.append(gen_result.lookahead_text)
             stop_reasons.append(gen_result.first_step_stop_reason)
+            probs.append(gen_result.prob)
             counter += 1
 
         beam_result = Beam(
@@ -152,6 +171,7 @@ def generate_k_steps(
             previous_text=None,
             pruned=False,
             history=[],
+            prob = probs
         )
         outputs.append(beam_result)
 

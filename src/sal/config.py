@@ -31,7 +31,7 @@ class Config:
     gpu_memory_utilization: float = (
         0.5
     )
-    prm_path: str = "/workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B"
+    prm_path: str = "RLHFlow/Llama3.1-8B-PRM-Deepseek-Data"
     # /workspace/models/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Skywork/Skywork-o1-Open-PRM-Qwen-2.5-7B
     # Output Related Options
