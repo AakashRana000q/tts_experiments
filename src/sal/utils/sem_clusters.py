@@ -53,6 +53,40 @@ def log_semantic_clusters(config, num_samples, num_clusters, agg_scores, iterati
 
     return log_file
 
+def list_logging(config, num_samples,agg_scores, iteration_number, problem_id, probs, budget):
+    """
+    Log semantic clustering information to a JSON file, appending new entries.
+    If the file doesn't exist, it starts with an empty list.
+    """
+
+    # print("+"*20,f"Logging  problem_id {problem_id} at iteration {iteration_number}","+"*20)
+    log_file = config.log_file
+    if os.path.exists(log_file):
+        try:
+            with open(log_file, 'r') as f:
+                log_data = json.load(f)
+                if not isinstance(log_data, list):
+                    log_data = []  
+        except json.JSONDecodeError:
+            log_data = []  
+    else:
+        log_data = []
+
+    new_entry = {
+        "num_samples": num_samples,
+        "agg_scores": agg_scores.tolist() if hasattr(agg_scores, 'tolist') else agg_scores,
+        "iteration_number": iteration_number,
+        "problem_id": problem_id,
+        "probs": probs.tolist() if hasattr(probs, 'tolist') else probs,
+        'budget':budget
+    }
+    log_data.append(new_entry)
+
+    with open(log_file, 'w') as f:
+        json.dump(log_data, f, indent=4)
+
+    return log_file
+
 def clean_solutions(ls):
     cleaned_ls = []
     for solution in ls:

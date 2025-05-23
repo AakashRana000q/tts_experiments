@@ -8,7 +8,7 @@ from vllm import LLM, SamplingParams
 
 from sal.config import Config
 from sal.models.reward_models import PRM
-from sal.utils.sem_clusters import get_semantic_indices
+from sal.utils.sem_clusters import get_semantic_indices,list_logging
 
 from .utils import Beam, build_conv, generate_k_steps, last
 
@@ -51,6 +51,7 @@ def _reg_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model =
     completed_beams: list[Beam] = []
     gen_budget = []
     for i in tqdm(range(config.num_iterations), desc="Reg Search iterations"):
+        old_i=i
         if i == 0:
             active_beams = [b for b in beams if not b.pruned]
         else:
@@ -146,13 +147,15 @@ def _reg_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model =
             active_beams = [active_beams[i] for i in unique_beam_dict.values()]
             agg_scores = [agg_scores[i] for i in unique_beam_dict.values()]
             probs = [probs[i] for i in unique_beam_dict.values()]
+            
         
         beta = 5
         lambda_ = 0.2
         flat_scores = np.array(agg_scores).flatten()
         probs_arr = np.array(probs).flatten()
         fin_scores = flat_scores*probs_arr
-
+        fin_scores = fin_scores*5
+        
         softmax_scores = np.exp(fin_scores) / np.sum(np.exp(fin_scores))
         gen_budget = np.round(softmax_scores * (bud_left)).astype(int)
         gen_budget = gen_budget.tolist()
@@ -160,6 +163,8 @@ def _reg_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model =
             base = bud_left // len(active_beams)
             remainder = bud_left % len(active_beams)
             gen_budget = [base + 1 if i < remainder else base for i in range(len(active_beams))]
+
+        list_logging(config, len(active_beams),flat_scores, old_i, problem_id, probs_arr, gen_budget)
     
     return completed_beams
 
