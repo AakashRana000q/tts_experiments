@@ -1,4 +1,4 @@
-model_path: Qwen/Qwen2.5-Math-1.5B-Instruct
+model_path: Qwen/Qwen2.5-1.5B-Instruct
 custom_chat_template: null
 filter_duplicates: true
 approach: reg_search

@@ -154,7 +154,7 @@ def _reg_search(batch_of_prompts, config: Config, llm: LLM, prm: PRM, em_model =
         flat_scores = np.array(agg_scores).flatten()
         probs_arr = np.array(probs).flatten()
         fin_scores = flat_scores*probs_arr
-        fin_scores = fin_scores*5
+        fin_scores = fin_scores*7
         
         softmax_scores = np.exp(fin_scores) / np.sum(np.exp(fin_scores))
         gen_budget = np.round(softmax_scores * (bud_left)).astype(int)
